@@ -1,0 +1,213 @@
+# StoragePilot Configuration
+# =========================
+
+# LLM Configuration
+llm:
+  provider: "openai"  # Options: openai, anthropic, ollama
+  model: "gpt-4o-mini"  # Or: claude-3-haiku-20240307, llama3
+  temperature: 0.1
+  # api_key: set via OPENAI_API_KEY or ANTHROPIC_API_KEY environment variable
+
+# Target directories to scan
+scan_paths:
+  primary:
+    - "~/Downloads"
+    - "~/Desktop"
+  secondary:
+    - "~/Documents"
+    - "~/Pictures"
+  workspace:
+    - "~/workspace"
+    - "~/projects"
+    - "~/dev"
+
+# Developer-specific artifact patterns
+developer_artifacts:
+  # Dependencies (safe to delete if project is inactive)
+  dependencies:
+    - pattern: "**/node_modules"
+      type: "npm"
+      regenerate_from: "package.json"
+      min_inactive_days: 30
+    
+    - pattern: "**/.venv"
+      type: "python_venv"
+      regenerate_from: "requirements.txt"
+      min_inactive_days: 30
+    
+    - pattern: "**/vendor"
+      type: "composer"
+      regenerate_from: "composer.json"
+      min_inactive_days: 30
+    
+    - pattern: "**/target"
+      type: "rust_cargo"
+      regenerate_from: "Cargo.toml"
+      min_inactive_days: 30
+
+  # Cache directories
+  caches:
+    - path: "~/.cache/huggingface"
+      name: "Hugging Face Models"
+      safe_to_clear: "partial"  # Keep recently used models
+    
+    - path: "~/.cache/torch"
+      name: "PyTorch Cache"
+      safe_to_clear: "partial"
+    
+    - path: "~/.npm/_cacache"
+      name: "NPM Cache"
+      safe_to_clear: "full"
+    
+    - path: "~/.cache/pip"
+      name: "Pip Cache"
+      safe_to_clear: "full"
+    
+    - path: "~/Library/Caches"
+      name: "macOS Caches"
+      safe_to_clear: "partial"
+
+  # Container artifacts
+  containers:
+    docker:
+      cleanup_dangling_images: true
+      cleanup_stopped_containers: true
+      cleanup_unused_volumes: true
+      cleanup_build_cache: true
+
+# File classification categories
+classification:
+  documents:
+    extensions: [".pdf", ".doc", ".docx", ".txt", ".md", ".rtf", ".odt"]
+    subcategories:
+      invoices:
+        keywords: ["invoice", "receipt", "bill", "payment"]
+        destination: "~/Documents/Finance/Invoices"
+      contracts:
+        keywords: ["contract", "agreement", "terms", "nda"]
+        destination: "~/Documents/Legal/Contracts"
+      tax:
+        keywords: ["tax", "w2", "1099", "return"]
+        destination: "~/Documents/Finance/Tax"
+      work:
+        keywords: ["meeting", "notes", "presentation", "report"]
+        destination: "~/Documents/Work"
+
+  images:
+    extensions: [".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg", ".bmp"]
+    subcategories:
+      screenshots:
+        patterns: ["Screenshot*", "Screen Shot*", "Capture*"]
+        destination: "~/Pictures/Screenshots"
+      photos:
+        patterns: ["IMG_*", "DSC_*", "DCIM*", "Photo*"]
+        destination: "~/Pictures/Photos"
+      memes:
+        ai_detect: true  # Use AI to detect meme content
+        destination: "~/Pictures/Memes"
+
+  installers:
+    extensions: [".dmg", ".pkg", ".exe", ".msi", ".deb", ".rpm", ".AppImage"]
+    action: "mark_for_deletion"
+    reason: "Installers can be re-downloaded"
+
+  code:
+    extensions: [".py", ".js", ".ts", ".jsx", ".tsx", ".java", ".go", ".rs", ".cpp", ".c", ".h"]
+    destination: "~/workspace/code_downloads"
+
+  data:
+    extensions: [".csv", ".json", ".xml", ".yaml", ".yml", ".sql", ".db", ".sqlite"]
+    destination: "~/workspace/data"
+
+  models:
+    extensions: [".h5", ".pt", ".pth", ".onnx", ".pkl", ".joblib", ".safetensors"]
+    destination: "~/workspace/models"
+
+  archives:
+    extensions: [".zip", ".tar", ".gz", ".rar", ".7z", ".tar.gz", ".tgz"]
+    action: "analyze_contents"  # Check if safe to extract or delete
+
+# Duplicate detection settings
+duplicates:
+  enabled: true
+  methods:
+    - "hash"      # Exact content match (xxhash)
+    - "filename"  # Similar filenames (file_v1, file_v2)
+    - "fuzzy"     # Fuzzy content matching for documents
+  actions:
+    exact_duplicates: "keep_newest"
+    version_duplicates: "consolidate"
+    fuzzy_duplicates: "report_only"
+
+# Organization rules
+organization:
+  # Folder structure template
+  structure:
+    documents:
+      - "Finance/Invoices"
+      - "Finance/Tax"
+      - "Legal/Contracts"
+      - "Work/Notes"
+      - "Work/Presentations"
+      - "Personal"
+    pictures:
+      - "Screenshots"
+      - "Photos/{year}/{month}"
+      - "Memes"
+      - "Wallpapers"
+    workspace:
+      - "active"
+      - "archive"
+      - "experiments"
+
+# Safety settings
+safety:
+  # Execution modes
+  dry_run: true                    # Preview only, no actual changes
+  require_approval: true           # Require user approval for each action
+  
+  # Backup settings
+  backup_before_delete: true       # Create backup before deleting files
+  backup_location: "~/.storagepilot_backup"
+  backup_retention_days: 30
+  
+  # Protection rules
+  protected_paths:
+    - "~/.ssh"
+    - "~/.gnupg"
+    - "~/.aws"
+    - "~/.config"
+    - "~/.local/share"
+  
+  protected_extensions:
+    - ".env"
+    - ".pem"
+    - ".key"
+    - ".crt"
+  
+  # Size limits
+  max_single_delete_gb: 10         # Require extra confirmation for large deletions
+  
+  # Undo support
+  enable_undo_log: true
+  undo_log_path: "logs/undo.json"
+
+# Stub file settings (for moved files)
+stubs:
+  enabled: true
+  format: "json"  # Options: json, symlink, txt
+  include_restore_command: true
+
+# UI settings
+ui:
+  theme: "dark"
+  refresh_interval: 2  # seconds
+  show_terminal_output: true
+  enable_sounds: false
+
+# Logging
+logging:
+  level: "INFO"
+  file: "logs/storagepilot.log"
+  console: true
+  rotation: "10 MB"
