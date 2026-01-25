@@ -34,6 +34,14 @@ from crewai import Crew, Process
 from agents import create_all_agents
 from agents.tasks import create_all_tasks
 from tools import TerminalTools
+from tools.matrixllm import (
+    pair_with_matrixllm,
+    matrixllm_healthcheck,
+    load_matrixllm_token,
+    save_matrixllm_token,
+    matrixllm_token_path,
+)
+
 
 
 console = Console()
@@ -73,13 +81,45 @@ def get_default_config() -> dict:
     }
 
 
+def _resolve_matrixllm_token(llm_config: dict) -> Optional[str]:
+    """Resolve MatrixLLM token from env, config, or saved token file."""
+    token = os.getenv("MATRIXLLM_TOKEN")
+    if token:
+        return token.strip() or None
+
+    token = (llm_config or {}).get("token")
+    if token and str(token).strip():
+        return str(token).strip()
+
+    return load_matrixllm_token()
+
+
 def get_llm(config: dict):
-    """Initialize the LLM based on configuration."""
+    """Initialize the LLM based on configuration (no healthcheck/fallback here)."""
     llm_config = config.get("llm", {})
     provider = llm_config.get("provider", "openai")
     model = llm_config.get("model", "gpt-4o-mini")
     temperature = llm_config.get("temperature", 0.1)
-    
+
+    if provider == "matrixllm":
+        from langchain_openai import ChatOpenAI
+
+        base_url = llm_config.get("base_url", "http://127.0.0.1:11435/v1")
+        token = _resolve_matrixllm_token(llm_config)
+
+        if not token:
+            raise RuntimeError(
+                "MatrixLLM token not found. Run: python main.py --pair-matrixllm "
+                "or set MATRIXLLM_TOKEN."
+            )
+
+        return ChatOpenAI(
+            model=model,
+            temperature=temperature,
+            base_url=base_url,
+            api_key=token,  # sent as Authorization: Bearer <token>
+        )
+
     if provider == "openai":
         from langchain_openai import ChatOpenAI
         return ChatOpenAI(
@@ -99,6 +139,39 @@ def get_llm(config: dict):
             model="gpt-4o-mini",
             temperature=0.1
         )
+
+
+def get_llm_with_fallback(config: dict):
+    """Initialize LLM with MatrixLLM healthcheck + automatic fallback to OpenAI."""
+    llm_config = config.get("llm", {})
+    provider = llm_config.get("provider", "openai")
+
+    if provider != "matrixllm":
+        return get_llm(config)
+
+    base_url = llm_config.get("base_url", "http://127.0.0.1:11435/v1")
+    token = _resolve_matrixllm_token(llm_config)
+
+    # If no token, we can't call MatrixLLM in pairing/required auth modes -> fallback
+    if not token:
+        console.print("[yellow]MatrixLLM provider selected, but no token found.[/yellow]")
+        console.print("[yellow]Falling back to OpenAI provider. (Set OPENAI_API_KEY)[/yellow]")
+        fallback_cfg = dict(config)
+        fallback_cfg["llm"] = dict(llm_config)
+        fallback_cfg["llm"]["provider"] = "openai"
+        return get_llm(fallback_cfg)
+
+    ok, msg = matrixllm_healthcheck(base_url=base_url, token=token, timeout_s=3)
+    if ok:
+        console.print("[green]✓ MatrixLLM health check passed.[/green]")
+        return get_llm(config)
+
+    console.print(f"[yellow]MatrixLLM health check failed: {msg}[/yellow]")
+    console.print("[yellow]Falling back to OpenAI provider. (Set OPENAI_API_KEY)[/yellow]")
+    fallback_cfg = dict(config)
+    fallback_cfg["llm"] = dict(llm_config)
+    fallback_cfg["llm"]["provider"] = "openai"
+    return get_llm(fallback_cfg)
 
 
 def get_scan_paths(config: dict) -> List[str]:
@@ -236,7 +309,7 @@ def run_crew(config: dict, dry_run: bool = True, verbose: bool = True):
     
     try:
         # Initialize LLM
-        llm = get_llm(config)
+        llm = get_llm_with_fallback(config)
         
         # Create agents
         agents = create_all_agents(llm)
@@ -368,6 +441,12 @@ def main():
         help="Path to configuration file"
     )
     parser.add_argument(
+        "--pair-matrixllm",
+        action="store_true",
+        help="Pair once with a local MatrixLLM gateway and save the token"
+    )
+
+    parser.add_argument(
         "--verbose", 
         action="store_true",
         default=True,
@@ -386,6 +465,33 @@ def main():
     
     # Load configuration
     config = load_config(args.config)
+
+# One-time MatrixLLM pairing flow (stores token under the user's config directory)
+if args.pair_matrixllm:
+    llm_cfg = (config or {}).get("llm", {})
+    base_url = llm_cfg.get("base_url", "http://127.0.0.1:11435/v1")
+    console.print(Panel.fit(
+        f"[bold]MatrixLLM Pairing[/bold]\n\n"
+        f"Base URL: [cyan]{base_url}[/cyan]\n"
+        f"Enter the pairing code shown by MatrixLLM (when started with --auth pairing).",
+        title="Pair MatrixLLM",
+        border_style="cyan"
+    ))
+    code = input("Pairing code: ").strip()
+    if not code:
+        console.print("[red]No pairing code provided.[/red]")
+        return
+
+    try:
+        token = pair_with_matrixllm(base_url=base_url, code=code)
+        path = save_matrixllm_token(token)
+        console.print(f"[green]✓ Paired successfully.[/green]")
+        console.print(f"[green]Token saved to: {path}[/green]")
+        console.print("[dim]Tip: You can also set MATRIXLLM_TOKEN to override the saved token.[/dim]")
+    except Exception as e:
+        console.print(f"[red]Pairing failed: {e}[/red]")
+    return
+
     
     # Determine dry_run mode
     dry_run = not args.execute

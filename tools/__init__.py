@@ -41,3 +41,12 @@ __all__ = [
     "classify_single_file",
     "detect_duplicates",
 ]
+
+
+from .matrixllm import (
+    pair_with_matrixllm,
+    matrixllm_healthcheck,
+    load_matrixllm_token,
+    save_matrixllm_token,
+    matrixllm_token_path,
+)
