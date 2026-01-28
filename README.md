@@ -33,13 +33,29 @@ StoragePilot is an enterprise-grade storage management solution that uses AI age
 
 ## Installation
 
-### Prerequisites
+### Option 1: pip install (Recommended)
+
+```bash
+pip install storagepilot
+```
+
+After installation, run the setup to install Ollama and default model:
+
+```bash
+storagepilot --setup
+```
+
+### Option 2: From Source
+
+#### Prerequisites
 - Python 3.10+
 - 4GB RAM minimum
 
-### One-Command Setup
+#### One-Command Setup
 
 ```bash
+git clone https://github.com/ruslanmv/StoragePilot.git
+cd StoragePilot
 make install
 ```
 
@@ -48,7 +64,7 @@ This installs:
 - Ollama (local LLM runtime)
 - Default model (`qwen2.5:0.5b`, ~400MB)
 
-### Manual Installation
+#### Manual Installation
 
 ```bash
 # Install dependencies
@@ -77,6 +93,22 @@ make run-execute
 
 # Launch web dashboard
 make run-ui
+```
+
+If installed via pip:
+
+```bash
+# Run in safe preview mode
+storagepilot --dry-run
+
+# Scan current directory
+storagepilot --scan-only
+
+# Execute with actions
+storagepilot --execute
+
+# Launch web dashboard
+storagepilot --ui
 ```
 
 ---
@@ -148,29 +180,83 @@ safety:
 
 ---
 
-## Architecture
+## MatrixLLM Setup (Optional)
+
+For users who prefer a custom LLM gateway (e.g., MatrixShell ecosystem).
+
+### How MatrixLLM Works
 
 ```
-┌────────────────────────────────────────────────────────────┐
-│                      StoragePilot                          │
-├────────────────────────────────────────────────────────────┤
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐   │
-│  │ Scanner  │→ │ Analyzer │→ │Organizer │→ │ Cleaner  │   │
-│  │  Agent   │  │  Agent   │  │  Agent   │  │  Agent   │   │
-│  └──────────┘  └──────────┘  └──────────┘  └──────────┘   │
-│       ↓              ↓             ↓             ↓        │
-│  ┌─────────────────────────────────────────────────────┐  │
-│  │                    Tool Layer                        │  │
-│  │  terminal.py │ classifier.py │ matrixllm.py         │  │
-│  └─────────────────────────────────────────────────────┘  │
-│       ↓              ↓             ↓             ↓        │
-│  ┌─────────────────────────────────────────────────────┐  │
-│  │              LLM Provider (Ollama/OpenAI)           │  │
-│  └─────────────────────────────────────────────────────┘  │
-└────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│                       StoragePilot                            │
+├──────────────────────────────────────────────────────────────┤
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐     │
+│  │ Scanner  │→ │ Analyzer │→ │Organizer │→ │ Cleaner  │     │
+│  │  Agent   │  │  Agent   │  │  Agent   │  │  Agent   │     │
+│  └──────────┘  └──────────┘  └──────────┘  └──────────┘     │
+│       │              │             │             │            │
+│       └──────────────┴─────────────┴─────────────┘            │
+│                            │                                  │
+│                    ┌───────▼───────┐                          │
+│                    │  MatrixLLM    │                          │
+│                    │   Gateway     │                          │
+│                    │ :11435/v1     │                          │
+│                    └───────┬───────┘                          │
+│                            │                                  │
+│              ┌─────────────┼─────────────┐                    │
+│              │             │             │                    │
+│        ┌─────▼─────┐ ┌─────▼─────┐ ┌─────▼─────┐             │
+│        │  Ollama   │ │  OpenAI   │ │ Anthropic │             │
+│        │  Local    │ │   API     │ │    API    │             │
+│        └───────────┘ └───────────┘ └───────────┘             │
+└──────────────────────────────────────────────────────────────┘
 ```
 
-### Agents
+### Setup Steps
+
+#### 1. Start MatrixLLM Server
+
+```bash
+matrixllm start --auth pairing --host 127.0.0.1 --port 11435 --model deepseek-r1
+```
+
+#### 2. Pair StoragePilot (One-Time)
+
+```bash
+storagepilot --pair-matrixllm
+```
+
+This will:
+- Prompt for the pairing code displayed by MatrixLLM.
+- Exchange the code for a long-lived token.
+- Save the token to `~/.config/storagepilot/matrixllm_token`.
+
+```
+┌─────────────────────────────────────┐
+│  MatrixLLM Pairing                  │
+│                                     │
+│  Base URL: http://127.0.0.1:11435/v1│
+│  Enter the pairing code shown by    │
+│  MatrixLLM (--auth pairing mode).   │
+├─────────────────────────────────────┤
+│  Pairing code: 123456               │
+│                                     │
+│  ✓ Paired successfully.             │
+│  Token saved to: ~/.config/...      │
+└─────────────────────────────────────┘
+```
+
+#### 3. Run StoragePilot
+
+```bash
+storagepilot --dry-run
+```
+
+Enjoy!
+
+---
+
+## Agents
 
 | Agent | Role | Capabilities |
 |-------|------|--------------|
@@ -185,7 +271,7 @@ safety:
 
 ## MCP Server
 
-StoragePilot includes an MCP (Model Context Protocol) server for tool integration:
+StoragePilot includes an MCP (Model Context Protocol) server for tool integration with external LLMs:
 
 ```bash
 # Start MCP server (dry-run)
@@ -195,7 +281,10 @@ make mcp-server
 make mcp-server-execute
 ```
 
-Add to Claude Desktop config:
+### Add to Claude Desktop
+
+Add to your Claude Desktop config (`~/.config/claude/claude_desktop_config.json`):
+
 ```json
 {
   "mcpServers": {
@@ -207,68 +296,42 @@ Add to Claude Desktop config:
 }
 ```
 
+### Available MCP Tools
 
-Here is the text converted into clean, standard Markdown. I have preserved the ASCII art diagrams within code blocks to ensure they render correctly and used tables for the comparison sections.
+| Tool | Description |
+|------|-------------|
+| `scan_directory` | Scan directory for size and file info |
+| `find_large_files` | Find files larger than threshold |
+| `find_developer_artifacts` | Detect node_modules, .venv, etc. |
+| `get_docker_usage` | Analyze Docker disk usage |
+| `classify_files` | AI-powered file classification |
+| `detect_duplicates` | Find duplicate files |
+| `move_file` | Move file to new location |
+| `delete_file` | Delete file (with safety checks) |
 
-## MatrixLLM Setup (Optional)
+---
 
-For users who prefer a custom LLM gateway (e.g., MatrixShell ecosystem).
-
-### How MatrixLLM Works
-
-```text
-┌─────────────────┐       ┌─────────────────┐       ┌─────────────────┐
-│  StoragePilot   │──────▶│    MatrixLLM    │──────▶│   Backend LLM   │
-│    (CrewAI)     │       │    (Gateway)    │       │  (deepseek-r1,  │
-│                 │◀──────│   Port 11435    │◀──────│   llama, etc)   │
-└─────────────────┘       └─────────────────┘       └─────────────────┘
-         │                         │
-         │    OpenAI-compatible    │
-         │  /v1/chat/completions   │
-         │                         │
-         └─────────────────────────┘
+## Project Structure
 
 ```
-
-### Setup Steps
-
-#### 1. Start MatrixLLM Server
-
-```bash
-matrixllm start --auth pairing --host 127.0.0.1 --port 11435 --model deepseek-r1
-
+StoragePilot/
+├── main.py              # CLI entry point
+├── mcp_server.py        # MCP server for tool integration
+├── Makefile             # Build and run commands
+├── config/
+│   └── config.yaml      # User configuration
+├── agents/
+│   ├── crew_agents.py   # Agent definitions
+│   └── tasks.py         # Task definitions
+├── tools/
+│   ├── terminal.py      # File system operations
+│   ├── classifier.py    # AI file classification
+│   └── matrixllm.py     # LLM integration (Ollama/MatrixLLM)
+├── scripts/
+│   └── setup_ollama.sh  # Ollama installation script
+└── ui/
+    └── dashboard.py     # Streamlit web UI
 ```
-
-#### 2. Pair StoragePilot (One-Time)
-
-```bash
-python main.py --pair-matrixllm
-
-```
-
-This will:
-
-* Prompt for the pairing code displayed by MatrixLLM.
-* Exchange the code for a long-lived token.
-* Save the token to `~/.config/storagepilot/matrixllm_token`.
-
-```text
-┌─────────────────────────────────────┐
-│  MatrixLLM Pairing                  │
-│                                     │
-│  Base URL: http://127.0.0.1:11435/v1│
-│  Enter the pairing code shown by    │
-│  MatrixLLM (--auth pairing mode).   │
-├─────────────────────────────────────┤
-│  Pairing code: 123456               │
-│                                     │
-│  ✓ Paired successfully.             │
-│  Token saved to: ~/.config/...      │
-└─────────────────────────────────────┘
-
-```
-
-
 
 ---
 

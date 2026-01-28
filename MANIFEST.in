@@ -1,0 +1,20 @@
+# Include config files
+include config/*.yaml
+include config/*.json
+
+# Include scripts
+include scripts/*.sh
+
+# Include assets
+include assets/*
+
+# Include documentation
+include README.md
+include LICENSE
+
+# Include main files
+include main.py
+include mcp_server.py
+include quick_scan.py
+include requirements.txt
+include Makefile
