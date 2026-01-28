@@ -2,7 +2,7 @@
 # =====================
 # Quick setup and installation commands
 
-.PHONY: help install install-deps install-ollama install-model run run-execute run-scan api api-prod test test-api test-all test-mcp clean mcp-server mcp-server-execute mcp-inspector mcp-dev mcp-list
+.PHONY: help install install-deps install-ollama install-model setup-wizard run run-execute run-scan api api-prod test test-api test-all test-mcp clean mcp-server mcp-server-execute mcp-inspector mcp-dev mcp-list
 
 # Virtual environment paths
 VENV := .venv
@@ -17,11 +17,13 @@ help:
 	@echo ""
 	@echo "Quick Start:"
 	@echo "  make install          Install everything (deps + Ollama + model)"
+	@echo "  make setup-wizard     Run interactive setup wizard (configure LLM, paths)"
 	@echo "  make api              Start web dashboard UI"
 	@echo "  make run              Run CLI in dry-run mode"
 	@echo ""
 	@echo "Installation:"
 	@echo "  make install          Full install (deps + Ollama + model)"
+	@echo "  make setup-wizard     Interactive setup wizard (LLM, scan paths, etc.)"
 	@echo "  make install-deps     Install Python dependencies only"
 	@echo "  make install-ollama   Install Ollama (local LLM runtime)"
 	@echo "  make install-model    Pull the default model ($(MODEL))"
@@ -119,6 +121,15 @@ install-model:
 	ollama pull $(MODEL)
 	@echo ""
 	@echo "✓ Model $(MODEL) ready"
+
+# Interactive setup wizard
+setup-wizard:
+	@echo "╔═══════════════════════════════════════════════════════════════╗"
+	@echo "║           StoragePilot Setup Wizard                           ║"
+	@echo "║       Configure LLM, scan paths, and safety settings          ║"
+	@echo "╚═══════════════════════════════════════════════════════════════╝"
+	@echo ""
+	$(PYTHON) scripts/setup_wizard.py
 
 # Verify Ollama is working
 test:

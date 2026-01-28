@@ -1,93 +1,150 @@
 #!/bin/bash
 # StoragePilot Setup Script
 # ==========================
+# Usage:
+#   ./setup.sh           - Full installation + optional wizard
+#   ./setup.sh --wizard  - Run only the interactive setup wizard
+#   ./setup.sh --install - Run only the installation (no wizard)
 
 set -e
 
-echo "╔═══════════════════════════════════════════════════════════════╗"
-echo "║           StoragePilot Installation Script                    ║"
-echo "║       AI-Powered Storage Lifecycle Manager                    ║"
-echo "╚═══════════════════════════════════════════════════════════════╝"
-echo ""
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
 
-# Check Python version
-echo "🔍 Checking Python version..."
-python_version=$(python3 --version 2>&1 | awk '{print $2}')
-echo "   Found Python $python_version"
+# Parse arguments
+RUN_WIZARD=false
+RUN_INSTALL=true
 
-# Create virtual environment
-echo ""
-echo "📦 Creating virtual environment..."
-python3 -m venv .venv
-source .venv/bin/activate
-echo "   Virtual environment activated"
+for arg in "$@"; do
+    case $arg in
+        --wizard)
+            RUN_WIZARD=true
+            RUN_INSTALL=false
+            ;;
+        --install)
+            RUN_INSTALL=true
+            RUN_WIZARD=false
+            ;;
+        --help|-h)
+            echo "StoragePilot Setup Script"
+            echo ""
+            echo "Usage: ./setup.sh [OPTIONS]"
+            echo ""
+            echo "Options:"
+            echo "  --wizard   Run only the interactive setup wizard"
+            echo "  --install  Run only the installation (no wizard)"
+            echo "  --help     Show this help message"
+            echo ""
+            echo "Default: Runs installation, then optionally the wizard"
+            exit 0
+            ;;
+    esac
+done
 
-# Upgrade pip
-echo ""
-echo "⬆️  Upgrading pip..."
-pip install --upgrade pip -q
-
-# Install dependencies
-echo ""
-echo "📥 Installing dependencies..."
-pip install -r requirements.txt -q
-echo "   Dependencies installed"
-
-# Create necessary directories
-echo ""
-echo "📁 Creating directories..."
-mkdir -p logs
-mkdir -p config
-echo "   Directories created"
-
-# Check for API keys
-echo ""
-echo "🔑 Checking API keys..."
-if [ -z "$OPENAI_API_KEY" ] && [ -z "$ANTHROPIC_API_KEY" ]; then
-    echo "   ⚠️  No API key found!"
+# Run installation if requested
+if [ "$RUN_INSTALL" = true ]; then
+    echo "╔═══════════════════════════════════════════════════════════════╗"
+    echo "║           StoragePilot Installation Script                    ║"
+    echo "║       AI-Powered Storage Lifecycle Manager                    ║"
+    echo "╚═══════════════════════════════════════════════════════════════╝"
     echo ""
-    echo "   Please set one of the following environment variables:"
-    echo "   export OPENAI_API_KEY='your-key-here'"
-    echo "   export ANTHROPIC_API_KEY='your-key-here'"
+
+    # Check Python version
+    echo "Checking Python version..."
+    python_version=$(python3 --version 2>&1 | awk '{print $2}')
+    echo "   Found Python $python_version"
+
+    # Create virtual environment
     echo ""
-else
-    if [ -n "$OPENAI_API_KEY" ]; then
-        echo "   ✓ OPENAI_API_KEY found"
+    echo "Creating virtual environment..."
+    if [ ! -d ".venv" ]; then
+        python3 -m venv .venv
+        echo "   Virtual environment created"
+    else
+        echo "   Virtual environment already exists"
     fi
-    if [ -n "$ANTHROPIC_API_KEY" ]; then
-        echo "   ✓ ANTHROPIC_API_KEY found"
+    source .venv/bin/activate
+    echo "   Virtual environment activated"
+
+    # Upgrade pip
+    echo ""
+    echo "Upgrading pip..."
+    pip install --upgrade pip -q
+
+    # Install dependencies
+    echo ""
+    echo "Installing dependencies..."
+    pip install -r requirements.txt -q
+    echo "   Dependencies installed"
+
+    # Create necessary directories
+    echo ""
+    echo "Creating directories..."
+    mkdir -p logs
+    mkdir -p config
+    echo "   Directories created"
+
+    # Check for API keys
+    echo ""
+    echo "Checking API keys..."
+    if [ -z "$OPENAI_API_KEY" ] && [ -z "$ANTHROPIC_API_KEY" ]; then
+        echo "   No API key found (Ollama will be used by default)"
+    else
+        if [ -n "$OPENAI_API_KEY" ]; then
+            echo "   OPENAI_API_KEY found"
+        fi
+        if [ -n "$ANTHROPIC_API_KEY" ]; then
+            echo "   ANTHROPIC_API_KEY found"
+        fi
+    fi
+
+    # Installation complete
+    echo ""
+    echo "╔═══════════════════════════════════════════════════════════════╗"
+    echo "║                 Installation Complete!                        ║"
+    echo "╚═══════════════════════════════════════════════════════════════╝"
+    echo ""
+
+    # Ask to run wizard
+    if [ -z "$RUN_WIZARD" ] || [ "$RUN_WIZARD" = false ]; then
+        echo "Would you like to run the interactive setup wizard? (y/N)"
+        read -r response
+        if [[ "$response" =~ ^[Yy]$ ]]; then
+            RUN_WIZARD=true
+        fi
     fi
 fi
 
-# Installation complete
+# Run wizard if requested
+if [ "$RUN_WIZARD" = true ]; then
+    echo ""
+    echo "Starting interactive setup wizard..."
+    echo ""
+
+    # Activate venv if not already
+    if [ -d ".venv" ]; then
+        source .venv/bin/activate
+    fi
+
+    python3 scripts/setup_wizard.py
+    exit 0
+fi
+
+# Print quick start if wizard wasn't run
 echo ""
-echo "╔═══════════════════════════════════════════════════════════════╗"
-echo "║                 Installation Complete! ✓                      ║"
-echo "╚═══════════════════════════════════════════════════════════════╝"
-echo ""
-echo "🚀 Quick Start:"
+echo "Quick Start:"
 echo ""
 echo "   1. Activate the virtual environment:"
 echo "      source .venv/bin/activate"
 echo ""
-echo "   2. Set your API key (if not already set):"
-echo "      export OPENAI_API_KEY='your-key-here'"
+echo "   2. Run the setup wizard to configure LLM and paths:"
+echo "      make setup-wizard"
+echo "      # or"
+echo "      python scripts/setup_wizard.py"
 echo ""
 echo "   3. Run StoragePilot:"
+echo "      make run              # CLI (dry-run mode)"
+echo "      make api              # Web dashboard"
 echo ""
-echo "      # Preview mode (safe, no changes):"
-echo "      python main.py --dry-run"
-echo ""
-echo "      # Scan only (no AI analysis):"
-echo "      python main.py --scan-only"
-echo ""
-echo "      # Launch the web dashboard:"
-echo "      python main.py --ui"
-echo "      # or"
-echo "      make api"
-echo ""
-echo "   4. Execute with approval (makes changes):"
-echo "      python main.py --execute"
-echo ""
-echo "📖 For more information, see README.md"
+echo "For more information, see README.md"
 echo ""
