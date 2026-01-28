@@ -10,7 +10,7 @@ Usage:
     python main.py --dry-run              # Preview mode (safe)
     python main.py --execute              # Execute with approval
     python main.py --scan-only            # Only scan, no actions
-    python main.py --ui                   # Launch Streamlit UI
+    python main.py --ui                   # Launch web dashboard (FastAPI + React)
 """
 
 import os
@@ -449,10 +449,15 @@ def run_scan_only(config: dict):
 
 
 def launch_ui():
-    """Launch the Streamlit UI."""
+    """Launch the FastAPI dashboard UI."""
     import subprocess
-    ui_path = Path(__file__).parent / "ui" / "dashboard.py"
-    subprocess.run(["streamlit", "run", str(ui_path)])
+    subprocess.run([
+        sys.executable, "-m", "uvicorn",
+        "ui.dashboard:app",
+        "--host", "127.0.0.1",
+        "--port", "8000",
+        "--reload"
+    ])
 
 
 def main():
@@ -477,9 +482,9 @@ def main():
         help="Only scan storage, no AI analysis"
     )
     parser.add_argument(
-        "--ui", 
+        "--ui",
         action="store_true",
-        help="Launch Streamlit UI"
+        help="Launch web dashboard (FastAPI + React)"
     )
     parser.add_argument(
         "--config", 

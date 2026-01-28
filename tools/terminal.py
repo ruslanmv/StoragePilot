@@ -49,11 +49,18 @@ class TerminalTools:
         self.log_path.parent.mkdir(parents=True, exist_ok=True)
         self.action_history: List[ActionLog] = []
     
-    def run_command(self, command: str, timeout: int = 300) -> CommandResult:
-        """Execute a shell command with timeout and logging."""
+    def run_command(self, command: str, timeout: int = 300, read_only: bool = False) -> CommandResult:
+        """Execute a shell command with timeout and logging.
+
+        Args:
+            command: The shell command to execute
+            timeout: Timeout in seconds
+            read_only: If True, command runs even in dry_run mode (for read-only ops like df, du, find)
+        """
         start_time = datetime.now()
-        
-        if self.dry_run:
+
+        # For read-only commands, always execute even in dry_run mode
+        if self.dry_run and not read_only:
             return CommandResult(
                 command=command,
                 returncode=0,
@@ -105,14 +112,14 @@ class TerminalTools:
         path = os.path.expanduser(path)
         
         # Get total size
-        result = self.run_command(f'du -sh "{path}" 2>/dev/null')
+        result = self.run_command(f'du -sh "{path}" 2>/dev/null', read_only=True)
         if result.returncode != 0:
             return {"error": result.stderr, "path": path}
         
         total_size = result.stdout.strip().split('\t')[0] if result.stdout else "0"
         
         # Get breakdown by subdirectory
-        result = self.run_command(f'du -h --max-depth=1 "{path}" 2>/dev/null | sort -hr | head -20')
+        result = self.run_command(f'du -h --max-depth=1 "{path}" 2>/dev/null | sort -hr | head -20', read_only=True)
         breakdown = []
         if result.returncode == 0 and result.stdout:
             for line in result.stdout.strip().split('\n'):
@@ -147,9 +154,9 @@ class TerminalTools:
             cmd += f' -mtime +{modified_days}'
         
         cmd += ' 2>/dev/null'
-        
-        result = self.run_command(cmd)
-        
+
+        result = self.run_command(cmd, read_only=True)
+
         files = []
         if result.returncode == 0 and result.stdout:
             for file_path in result.stdout.strip().split('\n'):
@@ -185,18 +192,18 @@ class TerminalTools:
     
     def get_docker_usage(self) -> Dict[str, Any]:
         """Get Docker disk usage."""
-        result = self.run_command('docker system df --format "{{json .}}"')
-        
+        result = self.run_command('docker system df --format "{{json .}}"', read_only=True)
+
         if result.returncode != 0:
             return {"error": "Docker not available or not running"}
-        
+
         docker_info = {
             "images": [],
             "containers": [],
             "volumes": [],
             "total_reclaimable": "0B"
         }
-        
+
         # Parse JSON output
         if result.stdout:
             for line in result.stdout.strip().split('\n'):
@@ -205,9 +212,9 @@ class TerminalTools:
                     docker_info[item['Type'].lower() + 's'] = item
                 except json.JSONDecodeError:
                     pass
-        
+
         # Get detailed image list
-        result = self.run_command('docker images --format "{{json .}}"')
+        result = self.run_command('docker images --format "{{json .}}"', read_only=True)
         if result.returncode == 0 and result.stdout:
             images = []
             for line in result.stdout.strip().split('\n'):
@@ -410,7 +417,7 @@ class TerminalTools:
     def get_system_overview(self) -> Dict[str, Any]:
         """Get overall system storage information."""
         # Disk usage
-        result = self.run_command('df -h ~ | tail -1')
+        result = self.run_command('df -h ~ | tail -1', read_only=True)
         disk_info = {}
         if result.returncode == 0 and result.stdout:
             parts = result.stdout.split()
@@ -421,9 +428,9 @@ class TerminalTools:
                     "available": parts[3],
                     "percent_used": parts[4]
                 }
-        
+
         # Top space consumers
-        result = self.run_command('du -sh ~/* 2>/dev/null | sort -hr | head -15')
+        result = self.run_command('du -sh ~/* 2>/dev/null | sort -hr | head -15', read_only=True)
         top_dirs = []
         if result.returncode == 0 and result.stdout:
             for line in result.stdout.strip().split('\n'):

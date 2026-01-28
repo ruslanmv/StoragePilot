@@ -1,16 +1,24 @@
 # CrewAI Multi-Agent Framework
-crewai>=0.28.0
-crewai-tools>=0.1.0
+crewai>=0.28.0,<2.0.0
+crewai-tools>=0.1.0,<2.0.0
 
-# LLM Support
-langchain>=0.1.0
-langchain-openai>=0.0.5
-langchain-anthropic>=0.1.0
-openai>=1.0.0
-anthropic>=0.18.0
+# LLM Support - PINNED versions for compatibility
+# These versions are known to work together
+langchain==0.3.27
+langchain-core==0.3.83
+langchain-openai==0.3.23
+langchain-anthropic==0.3.22
+langchain-text-splitters==0.3.11
+langsmith==0.6.6
+openai>=1.0.0,<2.0.0
+anthropic>=0.18.0,<1.0.0
 
-# UI Dashboard
-streamlit>=1.31.0
+# UI Dashboard (FastAPI + React)
+fastapi>=0.109.0
+uvicorn[standard]>=0.27.0
+websockets>=12.0
+
+# Charts and visualization
 plotly>=5.18.0
 altair>=5.2.0
 
@@ -31,10 +39,18 @@ watchdog>=4.0.0
 
 # Async Support
 aiofiles>=23.2.1
-asyncio>=3.4.3
+anyio>=4.0.0
+
+# Platform utilities (pinned for yapf compatibility)
+platformdirs>=3.5.1
 
 # HTTP Client (MatrixLLM pairing/health)
 requests>=2.31.0
+httpx>=0.25.0
 
-# MCP Server (Model Context Protocol)
-mcp>=1.0.0
+# MCP Server (Model Context Protocol) with CLI tools
+mcp[cli]>=1.0.0
+
+# Testing
+pytest>=7.0.0
+pytest-cov>=4.0.0
