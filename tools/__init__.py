@@ -49,4 +49,7 @@ from .matrixllm import (
     load_matrixllm_token,
     save_matrixllm_token,
     matrixllm_token_path,
+    # Ollama integration
+    ollama_healthcheck,
+    ollama_list_models,
 )

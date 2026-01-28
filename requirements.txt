@@ -35,3 +35,6 @@ asyncio>=3.4.3
 
 # HTTP Client (MatrixLLM pairing/health)
 requests>=2.31.0
+
+# MCP Server (Model Context Protocol)
+mcp>=1.0.0

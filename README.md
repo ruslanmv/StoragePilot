@@ -1,259 +1,244 @@
-# 🚀 StoragePilot v1.0
+<p align="center">
+  <img src="https://raw.githubusercontent.com/ruslanmv/StoragePilot/main/assets/logo.svg" alt="StoragePilot Logo" width="120" height="120">
+</p>
 
-## AI-Powered Storage Lifecycle Manager for Developers
+<h1 align="center">StoragePilot</h1>
 
-StoragePilot is a **multi-agent AI system** built with CrewAI that autonomously analyzes, organizes, and optimizes storage on developer workstations—understanding not just file types, but **developer context**.
+<p align="center">
+  <strong>AI-Powered Storage Lifecycle Manager</strong><br>
+  Multi-agent system for intelligent storage analysis and optimization
+</p>
 
----
-
-## 📋 Executive Summary
-
-### The Core Problem: "Digital Hoarding & Context-Blindness"
-
-Developers suffer from **critical storage exhaustion** and **file disorganization**. The accumulation of:
-- High-velocity "transient files" (Downloads/Screenshots)
-- Heavy "technical debt" (abandoned `.venv`, `node_modules`, Docker images)
-
-Creates a chaotic environment where the fear of data loss prevents manual cleanup.
-
----
-
-## 🔍 Problem Taxonomy
-
-| Category | Symptom | Root Cause |
-|----------|---------|------------|
-| **Technical Bloat** | 50GB+ in `node_modules`, `.venv`, `.cache` | Projects abandoned but dependencies retained |
-| **AI Model Drift** | Hidden 10GB+ Hugging Face/Torch caches | Model experimentation without cleanup |
-| **Container Zombies** | Dangling Docker images, stopped containers | Experiment-driven development lifecycle |
-| **Download Entropy** | Flat folder with 1000+ mixed files | No automated intake/triage system |
-| **Version Proliferation** | `file_v1`, `file_v2_final`, `file_REAL` | Manual versioning without deduplication |
-| **Storage Paralysis** | Files kept "just in case" indefinitely | No safe migration path to cold storage |
+<p align="center">
+  <a href="#installation">Installation</a> •
+  <a href="#quick-start">Quick Start</a> •
+  <a href="#features">Features</a> •
+  <a href="#configuration">Configuration</a> •
+  <a href="#architecture">Architecture</a>
+</p>
 
 ---
 
-## 🏗️ Architecture
+## Overview
 
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                           STORAGEPILOT v1.0                                 │
-│              "AI-Powered Storage Lifecycle Manager"                         │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                             │
-│  ┌─────────────────────────────────────────────────────────────────────┐   │
-│  │                        CREW ORCHESTRATOR                             │   │
-│  │                   (CrewAI Sequential Process)                        │   │
-│  └─────────────────────────────────────────────────────────────────────┘   │
-│                                    │                                        │
-│         ┌──────────────────────────┼──────────────────────────┐            │
-│         ▼                          ▼                          ▼            │
-│  ┌─────────────┐           ┌─────────────┐           ┌─────────────┐       │
-│  │   SCANNER   │           │  ANALYZER   │           │  ORGANIZER  │       │
-│  │    Agent    │──────────▶│    Agent    │──────────▶│    Agent    │       │
-│  └─────────────┘           └─────────────┘           └─────────────┘       │
-│         │                          │                          │            │
-│         └──────────────────────────┼──────────────────────────┘            │
-│                                    ▼                                        │
-│  ┌─────────────┐           ┌─────────────┐           ┌─────────────┐       │
-│  │   CLEANER   │◀──────────│  REPORTER   │◀──────────│  EXECUTOR   │       │
-│  │    Agent    │           │    Agent    │           │    Agent    │       │
-│  └─────────────┘           └─────────────┘           └─────────────┘       │
-│                                    │                                        │
-│                                    ▼                                        │
-│  ┌─────────────────────────────────────────────────────────────────────┐   │
-│  │                         STREAMLIT UI                                 │   │
-│  └─────────────────────────────────────────────────────────────────────┘   │
-│                                                                             │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
+StoragePilot is an enterprise-grade storage management solution that uses AI agents to analyze, classify, and optimize file storage. Built with CrewAI, it understands developer context—distinguishing active projects from abandoned artifacts.
+
+**Key Benefits:**
+- Zero-config local LLM support via Ollama
+- Safe dry-run mode by default
+- Developer-aware artifact detection
+- Automated file classification and organization
 
 ---
 
-## 🤖 Agent Roles
+## Installation
 
-### 1. Scanner Agent
-**Role:** Storage Detective  
-**Goal:** Discover all files, folders, and their sizes across the system  
-**Tools:** `du`, `find`, `docker system df`, `tree`
+### Prerequisites
+- Python 3.10+
+- 4GB RAM minimum
 
-### 2. Analyzer Agent
-**Role:** AI Classifier  
-**Goal:** Classify files semantically, identify duplicates, detect developer artifacts  
-**Tools:** File content analysis, hash comparison, pattern matching
-
-### 3. Organizer Agent
-**Role:** File Architect  
-**Goal:** Create optimal folder structure and move files appropriately  
-**Tools:** `mkdir`, `mv`, symlink creation
-
-### 4. Cleaner Agent
-**Role:** Storage Liberator  
-**Goal:** Safely remove unnecessary files with user approval  
-**Tools:** `rm`, `docker prune`, cache clearing
-
-### 5. Reporter Agent
-**Role:** Insights Compiler  
-**Goal:** Generate comprehensive reports and recommendations  
-**Tools:** Report generation, visualization
-
-### 6. Executor Agent
-**Role:** Action Manager  
-**Goal:** Execute approved actions with safety checks  
-**Tools:** Terminal commands with dry-run support
-
----
-
-## 🚀 Quick Start
+### One-Command Setup
 
 ```bash
-# 1. Install dependencies
+make install
+```
+
+This installs:
+- Python dependencies
+- Ollama (local LLM runtime)
+- Default model (`qwen2.5:0.5b`, ~400MB)
+
+### Manual Installation
+
+```bash
+# Install dependencies
 pip install -r requirements.txt
 
-# 2. Configure target directories
-cp config/config.example.yaml config/config.yaml
-# Edit config.yaml with your paths
+# Install Ollama
+./scripts/setup_ollama.sh
 
-# 3. Run in DRY-RUN mode (safe preview)
-python main.py --dry-run
-
-# 4. Launch the UI
-streamlit run ui/dashboard.py
-
-# 5. Run with execution (after review)
-python main.py --execute
+# Or use cloud providers (set API keys)
+export OPENAI_API_KEY=your-key
 ```
 
 ---
 
-## 📁 Project Structure
+## Quick Start
 
-```
-storagepilot/
-├── main.py                 # Entry point
-├── requirements.txt        # Dependencies
-├── config/
-│   ├── config.yaml         # User configuration
-│   └── categories.yaml     # File classification rules
-├── agents/
-│   ├── __init__.py
-│   ├── scanner.py          # Scanner Agent
-│   ├── analyzer.py         # Analyzer Agent
-│   ├── organizer.py        # Organizer Agent
-│   ├── cleaner.py          # Cleaner Agent
-│   ├── reporter.py         # Reporter Agent
-│   └── executor.py         # Executor Agent
-├── tools/
-│   ├── __init__.py
-│   ├── terminal.py         # Terminal command tools
-│   ├── file_ops.py         # File operation tools
-│   ├── docker_tools.py     # Docker cleanup tools
-│   └── classifier.py       # AI classification tools
-├── ui/
-│   ├── dashboard.py        # Streamlit main dashboard
-│   └── components.py       # UI components
-└── logs/
-    └── actions.log         # Action history
+```bash
+# Run in safe preview mode
+make run
+
+# Scan only (no AI analysis)
+make run-scan
+
+# Execute with actions (after review)
+make run-execute
+
+# Launch web dashboard
+make run-ui
 ```
 
 ---
 
-## ⚙️ Configuration
+## Features
+
+### Storage Analysis
+| Feature | Description |
+|---------|-------------|
+| **Directory Scanning** | Size breakdown, large file detection |
+| **Developer Artifacts** | Detects `node_modules`, `.venv`, `__pycache__`, build dirs |
+| **Docker Analysis** | Images, containers, volumes, build cache |
+| **Duplicate Detection** | Content-hash and filename-pattern matching |
+
+### File Classification
+| Category | Actions |
+|----------|---------|
+| Documents | Organize by type (invoices, contracts, tax) |
+| Images | Sort screenshots, photos, memes |
+| Code/Data | Move to workspace directories |
+| Installers | Mark for cleanup |
+| Archives | Analyze contents |
+
+### Safety
+- **Dry-run by default** — Preview before execution
+- **Approval gates** — Confirm destructive actions
+- **Backup support** — Optional pre-delete backups
+- **Undo logging** — Track all actions for rollback
+- **Protected paths** — Never touches `.ssh`, `.gnupg`, `.aws`
+
+---
+
+## Configuration
 
 Edit `config/config.yaml`:
 
 ```yaml
-# Target directories to analyze
+# LLM Provider
+llm:
+  provider: "ollama"           # ollama | openai | anthropic | matrixllm
+  model: "qwen2.5:0.5b"
+  base_url: "http://127.0.0.1:11434/v1"
+
+# Scan Targets
 scan_paths:
-  - ~/Downloads
-  - ~/Desktop
-  - ~/Documents
-  - ~/workspace
+  primary:
+    - "."                      # Current directory
+    - "~/Downloads"
+    - "~/Desktop"
+  workspace:
+    - "~/workspace"
+    - "~/projects"
 
-# Developer-specific paths
-developer_paths:
-  workspace: ~/workspace
-  node_modules_pattern: "**/node_modules"
-  venv_pattern: "**/.venv"
-  cache_paths:
-    - ~/.cache/huggingface
-    - ~/.cache/torch
-    - ~/.npm/_cacache
-
-# Organization rules
-organization:
-  downloads_sorting:
-    documents: ~/Documents/Sorted
-    images: ~/Pictures/Sorted
-    installers: ~/Trash/Installers
-    code: ~/workspace/downloads
-
-# Safety settings
+# Safety Settings
 safety:
   dry_run: true
   require_approval: true
   backup_before_delete: true
 ```
 
----
+### LLM Providers
 
-## 📊 Real-World Examples
-
-### Example 1: Downloads Folder Analysis
-
-**Before:**
-```
-~/Downloads/ (847 files, 34 GB)
-├── invoice_2024_03.pdf
-├── Screenshot_2024-01-15.png
-├── node-v20.10.0.pkg
-├── random_meme.jpg
-├── tax_return_2023.pdf
-└── ... 842 more files
-```
-
-**After StoragePilot:**
-```
-~/Documents/
-├── Finance/
-│   ├── Invoices/invoice_2024_03.pdf
-│   └── Tax/tax_return_2023.pdf
-~/Pictures/
-├── Screenshots/Screenshot_2024-01-15.png
-└── Memes/random_meme.jpg
-~/Trash/
-└── Installers/node-v20.10.0.pkg (marked for deletion)
-```
-
-### Example 2: Developer Artifact Cleanup
-
-**Identified:**
-```
-📊 DEVELOPER ARTIFACTS REPORT
-═══════════════════════════════════════════════════
-Project: old-react-project (Last modified: 8 months ago)
-└── node_modules/: 847 MB → SAFE TO DELETE ✓
-
-Project: ml-experiment-2023 (Last modified: 14 months ago)
-└── .venv/: 2.3 GB → SAFE TO DELETE ✓
-
-Project: avatar-animator (Last modified: 2 days ago)
-└── .venv/: 1.8 GB → KEEP (active project)
-
-POTENTIAL SAVINGS: 3.1 GB
-═══════════════════════════════════════════════════
-```
+| Provider | Setup | Use Case |
+|----------|-------|----------|
+| `ollama` | `make install` | Local inference, no API keys |
+| `matrixllm` | `--pair-matrixllm` | Custom LLM gateway |
+| `openai` | `OPENAI_API_KEY` | Cloud inference |
+| `anthropic` | `ANTHROPIC_API_KEY` | Cloud inference |
 
 ---
 
-## 🔒 Safety Features
+## Architecture
 
-1. **Dry-Run Mode**: Preview all actions without executing
-2. **Approval Gates**: Require explicit user approval for deletions
-3. **Stub Files**: Leave traces when moving files to external storage
-4. **Backup Support**: Optional backup before destructive operations
-5. **Undo Log**: Track all actions for potential rollback
+```
+┌────────────────────────────────────────────────────────────┐
+│                      StoragePilot                          │
+├────────────────────────────────────────────────────────────┤
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐   │
+│  │ Scanner  │→ │ Analyzer │→ │Organizer │→ │ Cleaner  │   │
+│  │  Agent   │  │  Agent   │  │  Agent   │  │  Agent   │   │
+│  └──────────┘  └──────────┘  └──────────┘  └──────────┘   │
+│       ↓              ↓             ↓             ↓        │
+│  ┌─────────────────────────────────────────────────────┐  │
+│  │                    Tool Layer                        │  │
+│  │  terminal.py │ classifier.py │ matrixllm.py         │  │
+│  └─────────────────────────────────────────────────────┘  │
+│       ↓              ↓             ↓             ↓        │
+│  ┌─────────────────────────────────────────────────────┐  │
+│  │              LLM Provider (Ollama/OpenAI)           │  │
+│  └─────────────────────────────────────────────────────┘  │
+└────────────────────────────────────────────────────────────┘
+```
+
+### Agents
+
+| Agent | Role | Capabilities |
+|-------|------|--------------|
+| **Scanner** | Storage Detective | Disk usage, large files, Docker stats |
+| **Analyzer** | AI Classifier | File classification, duplicate detection |
+| **Organizer** | File Architect | Folder structure, move planning |
+| **Cleaner** | Storage Liberator | Safe cleanup recommendations |
+| **Reporter** | Insights Compiler | Summary reports |
+| **Executor** | Action Manager | Execute with safety checks |
 
 ---
 
-## 📜 License
+## MCP Server
 
-MIT License - Use freely for personal and commercial projects.
+StoragePilot includes an MCP (Model Context Protocol) server for tool integration:
+
+```bash
+# Start MCP server (dry-run)
+make mcp-server
+
+# Start MCP server (execute mode)
+make mcp-server-execute
+```
+
+Add to Claude Desktop config:
+```json
+{
+  "mcpServers": {
+    "storagepilot": {
+      "command": "python",
+      "args": ["/path/to/StoragePilot/mcp_server.py"]
+    }
+  }
+}
+```
+
+---
+
+## Project Structure
+
+```
+StoragePilot/
+├── main.py              # CLI entry point
+├── mcp_server.py        # MCP server for tool integration
+├── Makefile             # Build and run commands
+├── config/
+│   └── config.yaml      # User configuration
+├── agents/
+│   ├── crew_agents.py   # Agent definitions
+│   └── tasks.py         # Task definitions
+├── tools/
+│   ├── terminal.py      # File system operations
+│   ├── classifier.py    # AI file classification
+│   └── matrixllm.py     # LLM integration (Ollama/MatrixLLM)
+├── scripts/
+│   └── setup_ollama.sh  # Ollama installation script
+└── ui/
+    └── dashboard.py     # Streamlit web UI
+```
+
+---
+
+## License
+
+MIT License — Free for personal and commercial use.
+
+---
+
+<p align="center">
+  <sub>Built with <a href="https://crewai.com">CrewAI</a> and <a href="https://ollama.com">Ollama</a></sub>
+</p>

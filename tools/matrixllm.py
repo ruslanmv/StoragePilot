@@ -98,3 +98,58 @@ def pair_with_matrixllm(
     if not token:
         raise RuntimeError(f"Pairing response missing token field: {data}")
     return str(token).strip()
+
+
+# =============================================================================
+# Ollama Integration (OpenAI-compatible local LLM)
+# =============================================================================
+
+def ollama_healthcheck(
+    base_url: str = "http://127.0.0.1:11434",
+    timeout_s: int = 3,
+) -> Tuple[bool, str]:
+    """Check if Ollama is running and reachable.
+
+    Ollama exposes:
+      - GET /api/tags -> list of available models
+      - GET /api/version -> version info
+
+    Returns (ok, message).
+    """
+    root = _strip_v1(base_url)
+    if not root:
+        return False, "Missing base_url"
+
+    try:
+        # Try /api/tags first (lists models)
+        r = requests.get(f"{root}/api/tags", timeout=timeout_s)
+        if r.status_code >= 200 and r.status_code < 300:
+            data = r.json() if r.headers.get("content-type", "").startswith("application/json") else {}
+            models = data.get("models", [])
+            model_names = [m.get("name", "unknown") for m in models[:5]]
+            return True, f"ok, models: {model_names}"
+        return False, f"HTTP {r.status_code}: {r.text[:200]}"
+    except requests.RequestException as e:
+        return False, str(e)
+
+
+def ollama_list_models(
+    base_url: str = "http://127.0.0.1:11434",
+    timeout_s: int = 5,
+) -> list:
+    """List available Ollama models.
+
+    Returns list of model names, or empty list on error.
+    """
+    root = _strip_v1(base_url)
+    if not root:
+        return []
+
+    try:
+        r = requests.get(f"{root}/api/tags", timeout=timeout_s)
+        if r.status_code >= 200 and r.status_code < 300:
+            data = r.json() if r.headers.get("content-type", "").startswith("application/json") else {}
+            return [m.get("name", "") for m in data.get("models", [])]
+        return []
+    except requests.RequestException:
+        return []
