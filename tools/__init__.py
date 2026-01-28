@@ -40,6 +40,11 @@ __all__ = [
     "classify_files",
     "classify_single_file",
     "detect_duplicates",
+    # Path Resolver Tools
+    "resolve_paths_tool",
+    "resolve_scan_paths",
+    "resolve_special_path",
+    "is_wsl",
 ]
 
 
@@ -52,4 +57,11 @@ from .matrixllm import (
     # Ollama integration
     ollama_healthcheck,
     ollama_list_models,
+)
+
+from .path_resolver import (
+    resolve_paths_tool,
+    resolve_scan_paths,
+    resolve_special_path,
+    is_wsl,
 )

@@ -114,6 +114,8 @@ def get_llm(config: dict):
             temperature=temperature,
             base_url=base_url,
             api_key="ollama",  # Ollama ignores this, but OpenAI SDK requires it
+            timeout=120,       # Avoid short timeouts for local models
+            max_retries=3,     # Retry transient failures
         )
 
     if provider == "matrixllm":
@@ -156,6 +158,42 @@ def get_llm(config: dict):
         )
 
 
+# -------------------------
+# Ollama LLM Helper Functions
+# -------------------------
+
+def _extract_text(resp) -> str:
+    """Extract text content from LangChain AIMessage or similar response."""
+    if resp is None:
+        return ""
+    if hasattr(resp, "content"):
+        return (resp.content or "").strip()
+    return str(resp).strip()
+
+
+def llm_sanity_check(llm) -> bool:
+    """Return True if the LLM can produce a non-empty response."""
+    try:
+        resp = llm.invoke("Reply with exactly: OK")
+        txt = _extract_text(resp)
+        return bool(txt)
+    except Exception:
+        return False
+
+
+def build_ollama_llm(model_name: str, temperature: float, base_url: str):
+    """Build an Ollama LLM instance with robust settings."""
+    from langchain_openai import ChatOpenAI
+    return ChatOpenAI(
+        model=model_name,
+        temperature=temperature,
+        base_url=base_url,
+        api_key="ollama",
+        timeout=120,
+        max_retries=3,
+    )
+
+
 def get_llm_with_fallback(config: dict):
     """Initialize LLM with healthcheck + automatic fallback.
 
@@ -176,9 +214,47 @@ def get_llm_with_fallback(config: dict):
         ok, msg = ollama_healthcheck(base_url=root_url, timeout_s=3)
         if ok:
             console.print(f"[green]✓ Ollama health check passed. ({msg})[/green]")
-            return get_llm(config)
 
-        console.print(f"[yellow]Ollama not available: {msg}[/yellow]")
+            # Create LLM + sanity check to catch empty responses
+            temperature = llm_config.get("temperature", 0.1)
+            model = llm_config.get("model", "qwen2.5:0.5b")
+
+            llm = build_ollama_llm(model, temperature, base_url)
+            if llm_sanity_check(llm):
+                return llm
+
+            console.print(f"[yellow]Ollama model '{model}' returned empty output. Trying fallback models...[/yellow]")
+
+            # Try other installed models, prefer bigger/more capable ones first
+            installed = ollama_list_models(base_url=root_url, timeout_s=5)
+
+            preferred_order = [
+                "llama3:8b",
+                "llama3:latest",
+                "qwen2.5:3b",
+                "qwen2.5:7b",
+                "gemma:2b",
+                "gemma:7b",
+                "deepseek-r1:latest",
+                "mistral:latest",
+            ]
+
+            # Candidates = preferred models that exist, then any remaining installed
+            candidates = [m for m in preferred_order if m in installed and m != model]
+            candidates += [m for m in installed if m not in candidates and m != model]
+
+            for m in candidates:
+                console.print(f"[dim]Trying Ollama model: {m}...[/dim]")
+                llm_try = build_ollama_llm(m, temperature, base_url)
+                if llm_sanity_check(llm_try):
+                    console.print(f"[green]✓ Using Ollama fallback model: {m}[/green]")
+                    return llm_try
+
+            console.print("[yellow]All Ollama models returned empty output. Falling back to OpenAI.[/yellow]")
+
+        else:
+            console.print(f"[yellow]Ollama not available: {msg}[/yellow]")
+
         console.print("[yellow]Falling back to OpenAI provider. (Set OPENAI_API_KEY)[/yellow]")
         fallback_cfg = dict(config)
         fallback_cfg["llm"] = dict(llm_config)
@@ -217,28 +293,37 @@ def get_llm_with_fallback(config: dict):
 
 
 def get_scan_paths(config: dict) -> List[str]:
-    """Extract all scan paths from configuration."""
-    paths = []
+    """Extract all scan paths from configuration and resolve them cross-platform."""
+    from tools.path_resolver import resolve_scan_paths
+
     scan_config = config.get("scan_paths", {})
+    paths: List[str] = []
 
     for category in ["primary", "secondary", "workspace"]:
         paths.extend(scan_config.get(category, []))
 
-    # Expand user paths and filter existing ones
-    expanded_paths = []
-    for path in paths:
-        # Handle current directory "."
-        if path == ".":
-            expanded = os.getcwd()
-        else:
-            expanded = os.path.expanduser(path)
+    # Use the cross-platform path resolver
+    resolved = resolve_scan_paths(paths)
 
-        if os.path.exists(expanded):
-            expanded_paths.append(expanded)
-        else:
-            console.print(f"[dim]Skipping non-existent path: {path}[/dim]")
+    # Show which paths were skipped (for transparency)
+    for raw in paths:
+        if raw == ".":
+            continue
+        expanded = os.path.expanduser(os.path.expandvars(raw))
+        # Only show skip if it wasn't resolved to an existing path
+        if not os.path.exists(expanded):
+            # Check if any resolved path corresponds to this raw path
+            found = any(
+                resolved_path.lower().endswith(raw.replace("~/", "").lower())
+                for resolved_path in resolved
+            )
+            if not found:
+                console.print(f"[dim]Skipping non-existent path: {raw}[/dim]")
 
-    return expanded_paths
+    if not resolved:
+        console.print("[red]No valid scan paths found after resolution. Please check config.[/red]")
+
+    return resolved
 
 
 def print_banner():
