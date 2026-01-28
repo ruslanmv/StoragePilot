@@ -24,7 +24,7 @@
 StoragePilot is an enterprise-grade storage management solution that uses AI agents to analyze, classify, and optimize file storage. Built with CrewAI, it understands developer context—distinguishing active projects from abandoned artifacts.
 
 **Key Benefits:**
-- Zero-config local LLM support via Ollama
+- Zero-config local LLM support
 - Safe dry-run mode by default
 - Developer-aware artifact detection
 - Automated file classification and organization
