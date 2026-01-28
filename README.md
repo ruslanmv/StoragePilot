@@ -33,13 +33,29 @@ StoragePilot is an enterprise-grade storage management solution that uses AI age
 
 ## Installation
 
-### Prerequisites
+### Option 1: pip install (Recommended)
+
+```bash
+pip install storagepilot
+```
+
+After installation, run the setup to install Ollama and default model:
+
+```bash
+storagepilot --setup
+```
+
+### Option 2: From Source
+
+#### Prerequisites
 - Python 3.10+
 - 4GB RAM minimum
 
-### One-Command Setup
+#### One-Command Setup
 
 ```bash
+git clone https://github.com/ruslanmv/StoragePilot.git
+cd StoragePilot
 make install
 ```
 
@@ -48,7 +64,7 @@ This installs:
 - Ollama (local LLM runtime)
 - Default model (`qwen2.5:0.5b`, ~400MB)
 
-### Manual Installation
+#### Manual Installation
 
 ```bash
 # Install dependencies
@@ -60,6 +76,7 @@ pip install -r requirements.txt
 # Or use cloud providers (set API keys)
 export OPENAI_API_KEY=your-key
 ```
+
 
 ---
 
@@ -77,6 +94,22 @@ make run-execute
 
 # Launch web dashboard
 make run-ui
+```
+
+If installed via pip:
+
+```bash
+# Run in safe preview mode
+storagepilot --dry-run
+
+# Scan current directory
+storagepilot --scan-only
+
+# Execute with actions
+storagepilot --execute
+
+# Launch web dashboard
+storagepilot --ui
 ```
 
 ---
@@ -151,23 +184,23 @@ safety:
 ## Architecture
 
 ```
-┌────────────────────────────────────────────────────────────┐
-│                      StoragePilot                          │
-├────────────────────────────────────────────────────────────┤
+┌───────────────────────────────────────────────────────────┐
+│                      StoragePilot                         │
+├───────────────────────────────────────────────────────────┤
 │  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐   │
 │  │ Scanner  │→ │ Analyzer │→ │Organizer │→ │ Cleaner  │   │
 │  │  Agent   │  │  Agent   │  │  Agent   │  │  Agent   │   │
 │  └──────────┘  └──────────┘  └──────────┘  └──────────┘   │
 │       ↓              ↓             ↓             ↓        │
 │  ┌─────────────────────────────────────────────────────┐  │
-│  │                    Tool Layer                        │  │
+│  │                    Tool Layer                       │  │
 │  │  terminal.py │ classifier.py │ matrixllm.py         │  │
 │  └─────────────────────────────────────────────────────┘  │
 │       ↓              ↓             ↓             ↓        │
 │  ┌─────────────────────────────────────────────────────┐  │
 │  │              LLM Provider (Ollama/OpenAI)           │  │
 │  └─────────────────────────────────────────────────────┘  │
-└────────────────────────────────────────────────────────────┘
+└───────────────────────────────────────────────────────────┘
 ```
 
 ### Agents
@@ -236,23 +269,20 @@ For users who prefer a custom LLM gateway (e.g., MatrixShell ecosystem).
 
 ```bash
 matrixllm start --auth pairing --host 127.0.0.1 --port 11435 --model deepseek-r1
-
 ```
 
 #### 2. Pair StoragePilot (One-Time)
 
 ```bash
-python main.py --pair-matrixllm
-
+storagepilot --pair-matrixllm
 ```
 
 This will:
+- Prompt for the pairing code displayed by MatrixLLM.
+- Exchange the code for a long-lived token.
+- Save the token to `~/.config/storagepilot/matrixllm_token`.
 
-* Prompt for the pairing code displayed by MatrixLLM.
-* Exchange the code for a long-lived token.
-* Save the token to `~/.config/storagepilot/matrixllm_token`.
-
-```text
+```
 ┌─────────────────────────────────────┐
 │  MatrixLLM Pairing                  │
 │                                     │
@@ -265,11 +295,13 @@ This will:
 │  ✓ Paired successfully.             │
 │  Token saved to: ~/.config/...      │
 └─────────────────────────────────────┘
-
 ```
 
+#### 3. Run StoragePilot
 
-
+```bash
+storagepilot --dry-run
+```
 ---
 
 ## License
