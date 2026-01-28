@@ -77,6 +77,7 @@ pip install -r requirements.txt
 export OPENAI_API_KEY=your-key
 ```
 
+
 ---
 
 ## Quick Start
@@ -180,36 +181,86 @@ safety:
 
 ---
 
+## Architecture
+
+```
+┌───────────────────────────────────────────────────────────┐
+│                      StoragePilot                         │
+├───────────────────────────────────────────────────────────┤
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐   │
+│  │ Scanner  │→ │ Analyzer │→ │Organizer │→ │ Cleaner  │   │
+│  │  Agent   │  │  Agent   │  │  Agent   │  │  Agent   │   │
+│  └──────────┘  └──────────┘  └──────────┘  └──────────┘   │
+│       ↓              ↓             ↓             ↓        │
+│  ┌─────────────────────────────────────────────────────┐  │
+│  │                    Tool Layer                       │  │
+│  │  terminal.py │ classifier.py │ matrixllm.py         │  │
+│  └─────────────────────────────────────────────────────┘  │
+│       ↓              ↓             ↓             ↓        │
+│  ┌─────────────────────────────────────────────────────┐  │
+│  │              LLM Provider (Ollama/OpenAI)           │  │
+│  └─────────────────────────────────────────────────────┘  │
+└───────────────────────────────────────────────────────────┘
+```
+
+### Agents
+
+| Agent | Role | Capabilities |
+|-------|------|--------------|
+| **Scanner** | Storage Detective | Disk usage, large files, Docker stats |
+| **Analyzer** | AI Classifier | File classification, duplicate detection |
+| **Organizer** | File Architect | Folder structure, move planning |
+| **Cleaner** | Storage Liberator | Safe cleanup recommendations |
+| **Reporter** | Insights Compiler | Summary reports |
+| **Executor** | Action Manager | Execute with safety checks |
+
+---
+
+## MCP Server
+
+StoragePilot includes an MCP (Model Context Protocol) server for tool integration:
+
+```bash
+# Start MCP server (dry-run)
+make mcp-server
+
+# Start MCP server (execute mode)
+make mcp-server-execute
+```
+
+Add to Claude Desktop config:
+```json
+{
+  "mcpServers": {
+    "storagepilot": {
+      "command": "python",
+      "args": ["/path/to/StoragePilot/mcp_server.py"]
+    }
+  }
+}
+```
+
+
+Here is the text converted into clean, standard Markdown. I have preserved the ASCII art diagrams within code blocks to ensure they render correctly and used tables for the comparison sections.
+
 ## MatrixLLM Setup (Optional)
 
 For users who prefer a custom LLM gateway (e.g., MatrixShell ecosystem).
 
 ### How MatrixLLM Works
 
-```
-┌──────────────────────────────────────────────────────────────┐
-│                       StoragePilot                            │
-├──────────────────────────────────────────────────────────────┤
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐     │
-│  │ Scanner  │→ │ Analyzer │→ │Organizer │→ │ Cleaner  │     │
-│  │  Agent   │  │  Agent   │  │  Agent   │  │  Agent   │     │
-│  └──────────┘  └──────────┘  └──────────┘  └──────────┘     │
-│       │              │             │             │            │
-│       └──────────────┴─────────────┴─────────────┘            │
-│                            │                                  │
-│                    ┌───────▼───────┐                          │
-│                    │  MatrixLLM    │                          │
-│                    │   Gateway     │                          │
-│                    │ :11435/v1     │                          │
-│                    └───────┬───────┘                          │
-│                            │                                  │
-│              ┌─────────────┼─────────────┐                    │
-│              │             │             │                    │
-│        ┌─────▼─────┐ ┌─────▼─────┐ ┌─────▼─────┐             │
-│        │  Ollama   │ │  OpenAI   │ │ Anthropic │             │
-│        │  Local    │ │   API     │ │    API    │             │
-│        └───────────┘ └───────────┘ └───────────┘             │
-└──────────────────────────────────────────────────────────────┘
+```text
+┌─────────────────┐       ┌─────────────────┐       ┌─────────────────┐
+│  StoragePilot   │──────▶│    MatrixLLM    │──────▶│   Backend LLM   │
+│    (CrewAI)     │       │    (Gateway)    │       │  (deepseek-r1,  │
+│                 │◀──────│   Port 11435    │◀──────│   llama, etc)   │
+└─────────────────┘       └─────────────────┘       └─────────────────┘
+         │                         │
+         │    OpenAI-compatible    │
+         │  /v1/chat/completions   │
+         │                         │
+         └─────────────────────────┘
+
 ```
 
 ### Setup Steps
@@ -251,88 +302,6 @@ This will:
 ```bash
 storagepilot --dry-run
 ```
-
-Enjoy!
-
----
-
-## Agents
-
-| Agent | Role | Capabilities |
-|-------|------|--------------|
-| **Scanner** | Storage Detective | Disk usage, large files, Docker stats |
-| **Analyzer** | AI Classifier | File classification, duplicate detection |
-| **Organizer** | File Architect | Folder structure, move planning |
-| **Cleaner** | Storage Liberator | Safe cleanup recommendations |
-| **Reporter** | Insights Compiler | Summary reports |
-| **Executor** | Action Manager | Execute with safety checks |
-
----
-
-## MCP Server
-
-StoragePilot includes an MCP (Model Context Protocol) server for tool integration with external LLMs:
-
-```bash
-# Start MCP server (dry-run)
-make mcp-server
-
-# Start MCP server (execute mode)
-make mcp-server-execute
-```
-
-### Add to Claude Desktop
-
-Add to your Claude Desktop config (`~/.config/claude/claude_desktop_config.json`):
-
-```json
-{
-  "mcpServers": {
-    "storagepilot": {
-      "command": "python",
-      "args": ["/path/to/StoragePilot/mcp_server.py"]
-    }
-  }
-}
-```
-
-### Available MCP Tools
-
-| Tool | Description |
-|------|-------------|
-| `scan_directory` | Scan directory for size and file info |
-| `find_large_files` | Find files larger than threshold |
-| `find_developer_artifacts` | Detect node_modules, .venv, etc. |
-| `get_docker_usage` | Analyze Docker disk usage |
-| `classify_files` | AI-powered file classification |
-| `detect_duplicates` | Find duplicate files |
-| `move_file` | Move file to new location |
-| `delete_file` | Delete file (with safety checks) |
-
----
-
-## Project Structure
-
-```
-StoragePilot/
-├── main.py              # CLI entry point
-├── mcp_server.py        # MCP server for tool integration
-├── Makefile             # Build and run commands
-├── config/
-│   └── config.yaml      # User configuration
-├── agents/
-│   ├── crew_agents.py   # Agent definitions
-│   └── tasks.py         # Task definitions
-├── tools/
-│   ├── terminal.py      # File system operations
-│   ├── classifier.py    # AI file classification
-│   └── matrixllm.py     # LLM integration (Ollama/MatrixLLM)
-├── scripts/
-│   └── setup_ollama.sh  # Ollama installation script
-└── ui/
-    └── dashboard.py     # Streamlit web UI
-```
-
 ---
 
 ## License
