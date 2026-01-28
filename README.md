@@ -207,29 +207,68 @@ Add to Claude Desktop config:
 }
 ```
 
----
 
-## Project Structure
+Here is the text converted into clean, standard Markdown. I have preserved the ASCII art diagrams within code blocks to ensure they render correctly and used tables for the comparison sections.
+
+## MatrixLLM Setup (Optional)
+
+For users who prefer a custom LLM gateway (e.g., MatrixShell ecosystem).
+
+### How MatrixLLM Works
+
+```text
+┌─────────────────┐       ┌─────────────────┐       ┌─────────────────┐
+│  StoragePilot   │──────▶│    MatrixLLM    │──────▶│   Backend LLM   │
+│    (CrewAI)     │       │    (Gateway)    │       │  (deepseek-r1,  │
+│                 │◀──────│   Port 11435    │◀──────│   llama, etc)   │
+└─────────────────┘       └─────────────────┘       └─────────────────┘
+         │                         │
+         │    OpenAI-compatible    │
+         │  /v1/chat/completions   │
+         │                         │
+         └─────────────────────────┘
 
 ```
-StoragePilot/
-├── main.py              # CLI entry point
-├── mcp_server.py        # MCP server for tool integration
-├── Makefile             # Build and run commands
-├── config/
-│   └── config.yaml      # User configuration
-├── agents/
-│   ├── crew_agents.py   # Agent definitions
-│   └── tasks.py         # Task definitions
-├── tools/
-│   ├── terminal.py      # File system operations
-│   ├── classifier.py    # AI file classification
-│   └── matrixllm.py     # LLM integration (Ollama/MatrixLLM)
-├── scripts/
-│   └── setup_ollama.sh  # Ollama installation script
-└── ui/
-    └── dashboard.py     # Streamlit web UI
+
+### Setup Steps
+
+#### 1. Start MatrixLLM Server
+
+```bash
+matrixllm start --auth pairing --host 127.0.0.1 --port 11435 --model deepseek-r1
+
 ```
+
+#### 2. Pair StoragePilot (One-Time)
+
+```bash
+python main.py --pair-matrixllm
+
+```
+
+This will:
+
+* Prompt for the pairing code displayed by MatrixLLM.
+* Exchange the code for a long-lived token.
+* Save the token to `~/.config/storagepilot/matrixllm_token`.
+
+```text
+┌─────────────────────────────────────┐
+│  MatrixLLM Pairing                  │
+│                                     │
+│  Base URL: http://127.0.0.1:11435/v1│
+│  Enter the pairing code shown by    │
+│  MatrixLLM (--auth pairing mode).   │
+├─────────────────────────────────────┤
+│  Pairing code: 123456               │
+│                                     │
+│  ✓ Paired successfully.             │
+│  Token saved to: ~/.config/...      │
+└─────────────────────────────────────┘
+
+```
+
+
 
 ---
 
