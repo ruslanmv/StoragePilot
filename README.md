@@ -83,17 +83,14 @@ export OPENAI_API_KEY=your-key
 ## Quick Start
 
 ```bash
-# Run in safe preview mode
+# Run in safe preview mode (CLI)
 make run
 
-# Scan only (no AI analysis)
-make run-scan
+# Launch web dashboard (React UI)
+make api
 
-# Execute with actions (after review)
-make run-execute
-
-# Launch web dashboard
-make run-ui
+# Run all tests
+make test-api
 ```
 
 If installed via pip:
@@ -107,9 +104,66 @@ storagepilot --scan-only
 
 # Execute with actions
 storagepilot --execute
+```
 
-# Launch web dashboard
-storagepilot --ui
+---
+
+## Makefile Commands
+
+Run `make help` to see all available commands:
+
+### Installation
+| Command | Description |
+|---------|-------------|
+| `make install` | Full install (deps + Ollama + model) |
+| `make install-deps` | Install Python dependencies only |
+| `make install-ollama` | Install Ollama (local LLM runtime) |
+| `make install-model` | Pull the default model |
+| `make install-model MODEL=llama3` | Pull a specific model |
+
+### Web Dashboard (React UI)
+| Command | Description |
+|---------|-------------|
+| `make api` | Start dashboard (dev mode with auto-reload) |
+| `make api-prod` | Start dashboard (production mode) |
+
+The dashboard will be available at: **http://127.0.0.1:8000**
+
+### CLI Commands
+| Command | Description |
+|---------|-------------|
+| `make run` | Run StoragePilot CLI (dry-run mode) |
+| `make run-execute` | Run StoragePilot CLI (execute mode) |
+| `make run-scan` | Run scan only (no AI analysis) |
+
+### Testing
+| Command | Description |
+|---------|-------------|
+| `make test` | Verify Ollama is working |
+| `make test-api` | Run API unit tests |
+| `make test-all` | Run all tests with coverage |
+
+### MCP Server (Model Context Protocol)
+| Command | Description |
+|---------|-------------|
+| `make mcp-server` | Start MCP server (dry-run, stdio transport) |
+| `make mcp-server-execute` | Start MCP server (execute mode) |
+| `make mcp-inspector` | Launch MCP Inspector UI (test/debug tools) |
+| `make mcp-dev` | Start server with MCP dev mode |
+| `make mcp-list` | List all available MCP tools |
+
+### Utilities
+| Command | Description |
+|---------|-------------|
+| `make clean` | Clean up generated files |
+| `make help` | Show all available commands |
+
+### Model Options
+```bash
+make install-model MODEL=qwen2.5:0.5b   # Smallest (~400MB)
+make install-model MODEL=llama3.2:1b   # Small (~1GB)
+make install-model MODEL=llama3        # Medium (~4GB)
+make install-model MODEL=mistral       # Good balance (~4GB)
 ```
 
 ---
@@ -218,30 +272,84 @@ safety:
 
 ## MCP Server
 
-StoragePilot includes an MCP (Model Context Protocol) server for tool integration:
+StoragePilot includes an MCP (Model Context Protocol) server that exposes all storage management tools for use by LLM agents.
+
+### Quick Start
 
 ```bash
-# Start MCP server (dry-run)
-make mcp-server
+# List all available tools
+make mcp-list
 
-# Start MCP server (execute mode)
-make mcp-server-execute
+# Launch MCP Inspector (visual testing UI)
+make mcp-inspector
+
+# Start server in dry-run mode
+make mcp-server
 ```
 
-Add to Claude Desktop config:
+### Available Commands
+
+| Command | Description |
+|---------|-------------|
+| `make mcp-server` | Start MCP server (dry-run, stdio transport) |
+| `make mcp-server-execute` | Start MCP server (execute mode - **caution!**) |
+| `make mcp-inspector` | Launch MCP Inspector UI at http://localhost:5173 |
+| `make mcp-dev` | Start with MCP CLI dev mode |
+| `make mcp-list` | List all 15 available tools |
+
+### MCP Inspector
+
+The MCP Inspector is a visual tool to test and debug MCP servers:
+
+```bash
+make mcp-inspector
+```
+
+This will:
+- Start the StoragePilot MCP server
+- Launch a web UI at **http://localhost:5173**
+- Let you visualize, test, and debug all tools
+
+**Requirements:** Node.js 18+ (`npx` command)
+
+### Available Tools
+
+| Category | Tools |
+|----------|-------|
+| **Discovery** | `scan_directory`, `find_large_files`, `find_old_files`, `find_developer_artifacts` |
+| **System** | `get_system_overview`, `get_docker_usage` |
+| **Classification** | `classify_files`, `classify_single_file`, `detect_duplicates` |
+| **Execution** | `move_file`, `delete_file`, `create_directory`, `clean_docker` |
+| **Utility** | `calculate_file_hash`, `get_server_info` |
+
+### Claude Desktop Integration
+
+Add to your Claude Desktop config (`~/.config/claude/claude_desktop_config.json`):
+
 ```json
 {
   "mcpServers": {
     "storagepilot": {
       "command": "python",
-      "args": ["/path/to/StoragePilot/mcp_server.py"]
+      "args": ["/path/to/StoragePilot/mcp_server.py", "--dry-run"]
     }
   }
 }
 ```
 
+For execute mode (allows actual file changes):
+```json
+{
+  "mcpServers": {
+    "storagepilot": {
+      "command": "python",
+      "args": ["/path/to/StoragePilot/mcp_server.py", "--execute"]
+    }
+  }
+}
+```
 
-Here is the text converted into clean, standard Markdown. I have preserved the ASCII art diagrams within code blocks to ensure they render correctly and used tables for the comparison sections.
+---
 
 ## MatrixLLM Setup (Optional)
 

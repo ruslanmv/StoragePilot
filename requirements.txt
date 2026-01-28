@@ -9,10 +9,15 @@ langchain-anthropic>=0.1.0
 openai>=1.0.0
 anthropic>=0.18.0
 
-# UI Dashboard
+# UI Dashboard (Streamlit)
 streamlit>=1.31.0
 plotly>=5.18.0
 altair>=5.2.0
+
+# API Dashboard (FastAPI)
+fastapi>=0.109.0
+uvicorn[standard]>=0.27.0
+websockets>=12.0
 
 # File Processing
 python-magic>=0.4.27
@@ -31,10 +36,18 @@ watchdog>=4.0.0
 
 # Async Support
 aiofiles>=23.2.1
-asyncio>=3.4.3
+anyio>=4.0.0
+
+# Platform utilities (pinned for yapf compatibility)
+platformdirs>=3.5.1
 
 # HTTP Client (MatrixLLM pairing/health)
 requests>=2.31.0
 
-# MCP Server (Model Context Protocol)
-mcp>=1.0.0
+# MCP Server (Model Context Protocol) with CLI tools
+mcp[cli]>=1.0.0
+
+# Testing
+pytest>=7.0.0
+pytest-cov>=4.0.0
+httpx>=0.25.0

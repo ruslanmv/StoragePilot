@@ -36,9 +36,24 @@ try:
         TextContent,
         CallToolResult,
     )
-except ImportError:
-    print("Error: MCP SDK not installed. Run: pip install mcp", file=sys.stderr)
-    sys.exit(1)
+except ImportError as e:
+    print(f"Error: MCP SDK import failed: {e}", file=sys.stderr)
+    print("", file=sys.stderr)
+    print("Attempting to install/upgrade dependencies...", file=sys.stderr)
+    import subprocess
+    try:
+        # Install/upgrade anyio first (required for mcp.lowlevel), then mcp
+        subprocess.check_call([sys.executable, "-m", "pip", "install", "--upgrade",
+                              "anyio>=4.0.0", "mcp[cli]>=1.0.0"],
+                              stdout=sys.stderr, stderr=sys.stderr)
+        print("", file=sys.stderr)
+        print("Dependencies installed. Please restart the server.", file=sys.stderr)
+        sys.exit(0)
+    except subprocess.CalledProcessError:
+        print("", file=sys.stderr)
+        print("Failed to install dependencies. Please run manually:", file=sys.stderr)
+        print("  pip install --upgrade 'anyio>=4.0.0' 'mcp[cli]>=1.0.0'", file=sys.stderr)
+        sys.exit(1)
 
 # Import StoragePilot tools
 sys.path.insert(0, str(Path(__file__).parent))

@@ -2,7 +2,12 @@
 # =====================
 # Quick setup and installation commands
 
-.PHONY: help install install-ollama install-model install-deps run test clean
+.PHONY: help install install-deps install-ollama install-model run run-execute run-scan api api-prod test test-api test-all test-mcp clean mcp-server mcp-server-execute mcp-inspector mcp-dev mcp-list
+
+# Virtual environment paths
+VENV := .venv
+PYTHON := $(VENV)/bin/python
+PIP := $(VENV)/bin/pip
 
 # Default model (smallest for quick start)
 MODEL ?= qwen2.5:0.5b
@@ -12,16 +17,40 @@ help:
 	@echo ""
 	@echo "Quick Start:"
 	@echo "  make install          Install everything (deps + Ollama + model)"
-	@echo "  make run              Run StoragePilot in dry-run mode"
+	@echo "  make api              Start web dashboard UI"
+	@echo "  make run              Run CLI in dry-run mode"
 	@echo ""
-	@echo "Individual Targets:"
-	@echo "  make install-deps     Install Python dependencies"
+	@echo "Installation:"
+	@echo "  make install          Full install (deps + Ollama + model)"
+	@echo "  make install-deps     Install Python dependencies only"
 	@echo "  make install-ollama   Install Ollama (local LLM runtime)"
 	@echo "  make install-model    Pull the default model ($(MODEL))"
-	@echo "  make run              Run StoragePilot (dry-run mode)"
-	@echo "  make run-execute      Run StoragePilot (execute mode)"
+	@echo ""
+	@echo "Web Dashboard (React UI):"
+	@echo "  make api              Start dashboard (dev mode, auto-reload)"
+	@echo "  make api-prod         Start dashboard (production mode)"
+	@echo ""
+	@echo "CLI Commands:"
+	@echo "  make run              Run StoragePilot CLI (dry-run mode)"
+	@echo "  make run-execute      Run StoragePilot CLI (execute mode)"
+	@echo "  make run-scan         Run scan only (no AI analysis)"
+	@echo ""
+	@echo "Testing:"
 	@echo "  make test             Verify Ollama is working"
+	@echo "  make test-api         Run API unit tests"
+	@echo "  make test-all         Run all tests with coverage"
+	@echo "  make test-mcp         Test all MCP server tools"
+	@echo ""
+	@echo "MCP Server (Model Context Protocol):"
+	@echo "  make mcp-server          Start MCP server (dry-run, stdio transport)"
+	@echo "  make mcp-server-execute  Start MCP server (execute mode)"
+	@echo "  make mcp-inspector       Launch MCP Inspector UI (test/debug tools)"
+	@echo "  make mcp-dev             Start server with MCP dev mode"
+	@echo "  make mcp-list            List all available MCP tools"
+	@echo ""
+	@echo "Utilities:"
 	@echo "  make clean            Clean up generated files"
+	@echo "  make help             Show this help message"
 	@echo ""
 	@echo "Model Options:"
 	@echo "  make install-model MODEL=qwen2.5:0.5b   Smallest (~400MB)"
@@ -34,12 +63,26 @@ install: install-deps install-ollama install-model
 	@echo ""
 	@echo "✓ Installation complete!"
 	@echo ""
+	@echo "Virtual environment: $(VENV)"
+	@echo ""
 	@echo "Run StoragePilot with: make run"
+	@echo "Or activate venv manually: source $(VENV)/bin/activate"
 
-# Install Python dependencies
+# Install Python dependencies in virtual environment
 install-deps:
+	@echo "Creating virtual environment..."
+	@if [ ! -d "$(VENV)" ]; then \
+		python3 -m venv $(VENV); \
+		echo "✓ Virtual environment created at $(VENV)"; \
+	else \
+		echo "✓ Virtual environment already exists"; \
+	fi
+	@echo ""
 	@echo "Installing Python dependencies..."
-	pip install -r requirements.txt
+	$(PIP) install --upgrade pip
+	$(PIP) install -r requirements.txt
+	@echo ""
+	@echo "✓ Dependencies installed in $(VENV)"
 
 # Install Ollama
 install-ollama:
@@ -85,23 +128,41 @@ test:
 		exit 1; \
 	fi
 
+# Run API unit tests
+test-api:
+	@echo "Running API unit tests..."
+	$(PYTHON) -m pytest tests/test_dashboard_api.py -v
+
+# Run all tests (API + coverage)
+test-all:
+	@echo "Running all tests with coverage..."
+	$(PYTHON) -m pytest tests/ -v --cov=ui --cov-report=term-missing
+
 # Run StoragePilot (dry-run mode - safe preview)
 run:
 	@echo "Running StoragePilot (dry-run mode)..."
-	OPENAI_API_KEY=ollama OPENAI_BASE_URL=http://127.0.0.1:11434/v1 python main.py --dry-run
+	OPENAI_API_KEY=ollama OPENAI_BASE_URL=http://127.0.0.1:11434/v1 $(PYTHON) main.py --dry-run
 
 # Run StoragePilot (execute mode - with actions)
 run-execute:
 	@echo "Running StoragePilot (execute mode)..."
-	OPENAI_API_KEY=ollama OPENAI_BASE_URL=http://127.0.0.1:11434/v1 python main.py --execute
+	OPENAI_API_KEY=ollama OPENAI_BASE_URL=http://127.0.0.1:11434/v1 $(PYTHON) main.py --execute
 
 # Run scan only (no AI analysis)
 run-scan:
-	python main.py --scan-only
+	$(PYTHON) main.py --scan-only
 
-# Launch UI dashboard
-run-ui:
-	python main.py --ui
+# Launch web dashboard (React UI)
+api:
+	@echo "Starting StoragePilot Dashboard..."
+	@echo "Dashboard will be available at: http://127.0.0.1:8000"
+	@echo "API docs at: http://127.0.0.1:8000/docs"
+	$(PYTHON) -m uvicorn ui.dashboard:app --host 127.0.0.1 --port 8000 --reload
+
+# Launch FastAPI dashboard (production mode)
+api-prod:
+	@echo "Starting StoragePilot Dashboard (production)..."
+	$(PYTHON) -m uvicorn ui.dashboard:app --host 0.0.0.0 --port 8000
 
 # Clean generated files
 clean:
@@ -111,9 +172,126 @@ clean:
 	rm -f logs/*.log logs/*.txt
 	@echo "✓ Cleaned"
 
-# Start MCP server (for LLM tool integration)
-mcp-server:
-	python mcp_server.py --dry-run
+# =============================================================================
+# MCP Server Commands
+# =============================================================================
 
+# Helper to check and install MCP SDK (with anyio upgrade for lowlevel module)
+define check_mcp
+	@$(PYTHON) -c "from mcp.server import Server" 2>/dev/null || (echo "MCP SDK not found or outdated. Installing..." && $(PIP) install --upgrade "anyio>=4.0.0" "mcp[cli]>=1.0.0" && echo "✓ MCP SDK installed")
+endef
+
+# Start MCP server (dry-run mode - stdio transport)
+mcp-server:
+	$(call check_mcp)
+	@echo "╔═══════════════════════════════════════════════════════════════╗"
+	@echo "║           StoragePilot MCP Server (DRY-RUN MODE)              ║"
+	@echo "╠═══════════════════════════════════════════════════════════════╣"
+	@echo "║  Transport: stdio                                             ║"
+	@echo "║  Mode: DRY-RUN (preview only, no file changes)                ║"
+	@echo "║                                                               ║"
+	@echo "║  To test with MCP Inspector:                                  ║"
+	@echo "║    make mcp-inspector                                         ║"
+	@echo "║                                                               ║"
+	@echo "║  To connect from Claude Desktop, add to config:               ║"
+	@echo "║    \"storagepilot\": {                                          ║"
+	@echo "║      \"command\": \"$(CURDIR)/$(PYTHON)\",                        ║"
+	@echo "║      \"args\": [\"$(CURDIR)/mcp_server.py\", \"--dry-run\"]         ║"
+	@echo "║    }                                                          ║"
+	@echo "╚═══════════════════════════════════════════════════════════════╝"
+	@echo ""
+	$(PYTHON) mcp_server.py --dry-run
+
+# Start MCP server (execute mode - allows actual file changes)
 mcp-server-execute:
-	python mcp_server.py --execute
+	$(call check_mcp)
+	@echo "╔═══════════════════════════════════════════════════════════════╗"
+	@echo "║         StoragePilot MCP Server (EXECUTE MODE)                ║"
+	@echo "╠═══════════════════════════════════════════════════════════════╣"
+	@echo "║  ⚠️  WARNING: This mode performs ACTUAL file operations!       ║"
+	@echo "║                                                               ║"
+	@echo "║  Transport: stdio                                             ║"
+	@echo "║  Mode: EXECUTE (live file changes)                            ║"
+	@echo "╚═══════════════════════════════════════════════════════════════╝"
+	@echo ""
+	$(PYTHON) mcp_server.py --execute
+
+# Launch MCP Inspector to test and debug tools
+mcp-inspector:
+	$(call check_mcp)
+	@echo "╔═══════════════════════════════════════════════════════════════╗"
+	@echo "║              MCP Inspector - Tool Testing UI                  ║"
+	@echo "╠═══════════════════════════════════════════════════════════════╣"
+	@echo "║  Starting MCP Inspector with StoragePilot server...           ║"
+	@echo "║                                                               ║"
+	@echo "║  The Inspector UI will open at: http://localhost:5173         ║"
+	@echo "║                                                               ║"
+	@echo "║  Features:                                                    ║"
+	@echo "║    - Visualize all available tools                            ║"
+	@echo "║    - Test tools with custom inputs                            ║"
+	@echo "║    - Debug connection issues                                  ║"
+	@echo "╚═══════════════════════════════════════════════════════════════╝"
+	@echo ""
+	@if command -v npx >/dev/null 2>&1; then \
+		npx @modelcontextprotocol/inspector $(PYTHON) mcp_server.py --dry-run; \
+	else \
+		echo "Error: npx not found. Install Node.js 18+ first."; \
+		echo "  brew install node  (macOS)"; \
+		echo "  apt install nodejs npm  (Linux)"; \
+		exit 1; \
+	fi
+
+# Start MCP server with dev mode (built-in inspector via mcp CLI)
+mcp-dev:
+	$(call check_mcp)
+	@echo "╔═══════════════════════════════════════════════════════════════╗"
+	@echo "║              MCP Dev Mode (built-in inspector)                ║"
+	@echo "╠═══════════════════════════════════════════════════════════════╣"
+	@echo "║  Starting with: mcp dev mcp_server.py                         ║"
+	@echo "║                                                               ║"
+	@echo "║  This uses the MCP CLI's built-in development server.         ║"
+	@echo "╚═══════════════════════════════════════════════════════════════╝"
+	@echo ""
+	$(VENV)/bin/mcp dev mcp_server.py
+
+# List all available MCP tools
+mcp-list:
+	$(call check_mcp)
+	@echo "╔═══════════════════════════════════════════════════════════════╗"
+	@echo "║              StoragePilot MCP Tools                           ║"
+	@echo "╚═══════════════════════════════════════════════════════════════╝"
+	@echo ""
+	@echo "Discovery Tools:"
+	@echo "  • scan_directory          - Scan directory for disk usage"
+	@echo "  • find_large_files        - Find files larger than threshold"
+	@echo "  • find_old_files          - Find files not modified recently"
+	@echo "  • find_developer_artifacts - Find node_modules, .venv, etc."
+	@echo ""
+	@echo "System Tools:"
+	@echo "  • get_system_overview     - Get overall storage info"
+	@echo "  • get_docker_usage        - Get Docker storage breakdown"
+	@echo ""
+	@echo "Classification Tools:"
+	@echo "  • classify_files          - Classify all files in directory"
+	@echo "  • classify_single_file    - Classify a single file"
+	@echo "  • detect_duplicates       - Find duplicate files (MD5 hash)"
+	@echo ""
+	@echo "Execution Tools (respects dry-run mode):"
+	@echo "  • move_file               - Move file to new location"
+	@echo "  • delete_file             - Delete file (with backup option)"
+	@echo "  • create_directory        - Create new directory"
+	@echo "  • clean_docker            - Clean Docker resources"
+	@echo ""
+	@echo "Utility Tools:"
+	@echo "  • calculate_file_hash     - Calculate file hash"
+	@echo "  • get_server_info         - Get MCP server status"
+	@echo ""
+	@echo "Total: 15 tools available"
+	@echo ""
+	@echo "To test tools interactively: make mcp-inspector"
+	@echo "To run automated tests:      make test-mcp"
+
+# Test all MCP tools automatically
+test-mcp:
+	@echo "Running MCP tool tests..."
+	@./scripts/test_mcp_tools.sh
