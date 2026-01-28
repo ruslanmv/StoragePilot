@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "storagepilot": {
+      "command": "python",
+      "args": ["mcp_server.py", "--dry-run"],
+      "cwd": "/path/to/StoragePilot",
+      "env": {}
+    },
+    "storagepilot-execute": {
+      "command": "python",
+      "args": ["mcp_server.py", "--execute"],
+      "cwd": "/path/to/StoragePilot",
+      "env": {}
+    }
+  }
+}
