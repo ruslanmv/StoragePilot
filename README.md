@@ -235,10 +235,10 @@ StoragePilot/
 
 ## License
 
-MIT License — Free for personal and commercial use.
+Apache 2.0 License — Free for personal and commercial use.
 
 ---
 
 <p align="center">
-  <sub>Built with <a href="https://crewai.com">CrewAI</a> and <a href="https://ollama.com">Ollama</a></sub>
+  <sub>Built with <a href="https://crewai.com">CrewAI</a> and <a href="https://ollabridge.com">OllaBridge</a></sub>
 </p>
