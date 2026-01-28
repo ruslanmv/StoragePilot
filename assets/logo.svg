@@ -1,73 +1,143 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
+<!-- BEGIN SVG LOGO -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="200" height="200">
   <defs>
+    <!-- Background Gradient (Deep Space) -->
     <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#6366f1;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#8b5cf6;stop-opacity:1" />
+      <stop offset="0%" style="stop-color:#4f46e5;stop-opacity:1" /> <!-- Indigo-600 -->
+      <stop offset="100%" style="stop-color:#0f172a;stop-opacity:1" /> <!-- Slate-900 -->
     </linearGradient>
-    <linearGradient id="diskGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" style="stop-color:#f8fafc;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#e2e8f0;stop-opacity:1" />
+
+    <!-- Disk Surface Gradient (Metallic) -->
+    <linearGradient id="diskSurface" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#f1f5f9;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#cbd5e1;stop-opacity:1" />
     </linearGradient>
-    <style>
-      @keyframes pulse {
-        0%, 100% { opacity: 0.6; }
-        50% { opacity: 1; }
-      }
-      @keyframes sparkle {
-        0%, 100% { transform: scale(1); opacity: 1; }
-        50% { transform: scale(1.2); opacity: 0.8; }
-      }
-      @keyframes rotate {
-        from { transform: rotate(0deg); }
-        to { transform: rotate(360deg); }
-      }
-      .disk-glow-1 { animation: pulse 2s ease-in-out infinite; }
-      .disk-glow-2 { animation: pulse 2s ease-in-out infinite 0.3s; }
-      .disk-glow-3 { animation: pulse 2s ease-in-out infinite 0.6s; }
-      .ai-sparkle { animation: sparkle 1.5s ease-in-out infinite; transform-origin: 82px 28px; }
-      .arrow-rotate { animation: rotate 4s linear infinite; transform-origin: 60px 60px; }
-    </style>
+
+    <!-- Disk Side Gradient (Shadow depth) -->
+    <linearGradient id="diskSide" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#94a3b8;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#e2e8f0;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#64748b;stop-opacity:1" />
+    </linearGradient>
+
+    <!-- Scanner Glow -->
+    <linearGradient id="scanGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+        <stop offset="0%" stop-color="#22d3ee" stop-opacity="0" />
+        <stop offset="50%" stop-color="#22d3ee" stop-opacity="0.8" />
+        <stop offset="100%" stop-color="#22d3ee" stop-opacity="0" />
+    </linearGradient>
+
+    <!-- Filters for Glow -->
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="2.5" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
   </defs>
 
-  <!-- Background circle -->
-  <circle cx="60" cy="60" r="56" fill="url(#bgGrad)"/>
+  <style>
+    /* 1. Floating Animation for the Stack */
+    .stack {
+      animation: float 4s ease-in-out infinite;
+    }
+    @keyframes float {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-4px); }
+    }
 
-  <!-- Storage disk base -->
-  <ellipse cx="60" cy="72" rx="32" ry="10" fill="#1e1b4b" opacity="0.3"/>
+    /* 2. Rotation for the Orbit Ring */
+    .orbit {
+      animation: spin 8s linear infinite;
+      transform-origin: 60px 60px;
+    }
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
 
-  <!-- Disk stack - bottom -->
-  <g transform="translate(60, 68)">
-    <ellipse cx="0" cy="0" rx="28" ry="8" fill="url(#diskGrad)"/>
-    <path d="M-28,0 L-28,-6 A28,8 0 0,1 28,-6 L28,0" fill="#cbd5e1"/>
-    <ellipse cx="0" cy="-6" rx="28" ry="8" fill="url(#diskGrad)"/>
-    <ellipse class="disk-glow-1" cx="0" cy="-6" rx="10" ry="3" fill="#6366f1" opacity="0.6"/>
+    /* 3. Pulse for the AI Core */
+    .core-pulse {
+      animation: pulse 3s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 0.4; }
+      50% { opacity: 0.8; }
+    }
+    
+    /* 4. Scanning line */
+    .scanner {
+        animation: scan 3s ease-in-out infinite;
+    }
+    @keyframes scan {
+        0%, 100% { opacity: 0; transform: translateY(10px); }
+        50% { opacity: 1; transform: translateY(-20px); }
+    }
+  </style>
+
+  <!-- Main Background Container -->
+  <circle cx="60" cy="60" r="56" fill="url(#bgGrad)" stroke="#6366f1" stroke-width="1" stroke-opacity="0.3"/>
+  
+  <!-- Outer Tech Ring (Decorative) -->
+  <circle cx="60" cy="60" r="48" fill="none" stroke="#6366f1" stroke-width="0.5" stroke-dasharray="4 4" opacity="0.3" class="orbit" style="animation-duration: 20s;"/>
+
+  <!-- The Floating Storage Stack -->
+  <g class="stack">
+    
+    <!-- Shadow under stack -->
+    <ellipse cx="60" cy="85" rx="25" ry="6" fill="#000" opacity="0.2">
+        <animate attributeName="rx" values="25;22;25" dur="4s" repeatCount="indefinite" />
+        <animate attributeName="opacity" values="0.2;0.1;0.2" dur="4s" repeatCount="indefinite" />
+    </ellipse>
+
+    <!-- Bottom Disk -->
+    <g transform="translate(60, 74)">
+      <path d="M-24,0 L-24,-8 A24,8 0 0,1 24,-8 L24,0 A24,8 0 0,1 -24,0" fill="url(#diskSide)"/>
+      <ellipse cx="0" cy="-8" rx="24" ry="8" fill="url(#diskSurface)"/>
+      <!-- LED -->
+      <circle cx="-18" cy="-5" r="1.5" fill="#10b981" class="core-pulse"/>
+    </g>
+
+    <!-- Middle Disk -->
+    <g transform="translate(60, 62)">
+      <path d="M-24,0 L-24,-8 A24,8 0 0,1 24,-8 L24,0 A24,8 0 0,1 -24,0" fill="url(#diskSide)"/>
+      <ellipse cx="0" cy="-8" rx="24" ry="8" fill="url(#diskSurface)"/>
+      <!-- LED -->
+      <circle cx="-18" cy="-5" r="1.5" fill="#10b981" class="core-pulse" style="animation-delay: 0.2s"/>
+    </g>
+
+    <!-- Top Disk -->
+    <g transform="translate(60, 50)">
+      <path d="M-24,0 L-24,-8 A24,8 0 0,1 24,-8 L24,0 A24,8 0 0,1 -24,0" fill="url(#diskSide)"/>
+      <ellipse cx="0" cy="-8" rx="24" ry="8" fill="url(#diskSurface)"/>
+      <!-- Branding / Core -->
+      <ellipse cx="0" cy="-8" rx="12" ry="4" fill="#6366f1" opacity="0.2"/>
+    </g>
+    
+    <!-- Holographic Scanner Line -->
+    <g transform="translate(60, 65)">
+        <ellipse cx="0" cy="0" rx="26" ry="9" fill="none" stroke="url(#scanGrad)" stroke-width="2" class="scanner" filter="url(#glow)"/>
+    </g>
+
+  </g> <!-- End Stack -->
+
+  <!-- The AI "Pilot" Orbit -->
+  <g class="orbit">
+    <!-- Orbital path (invisible, just for reference logic if needed, but handled by rotation) -->
+    
+    <!-- The Satellite Object -->
+    <g transform="translate(0, -48)">
+        <!-- Planet/Electron -->
+        <circle cx="60" cy="60" r="5" fill="#22d3ee" filter="url(#glow)"/>
+        <!-- Trail -->
+        <path d="M60,60 A48,48 0 0,0 30,75" stroke="#22d3ee" stroke-width="2" stroke-linecap="round" fill="none" opacity="0.4" transform="rotate(10, 60, 60)"/>
+    </g>
+    
+    <!-- Counter-weight Satellite (smaller) -->
+    <g transform="translate(0, 48)">
+        <circle cx="60" cy="60" r="3" fill="#818cf8" opacity="0.8"/>
+    </g>
   </g>
 
-  <!-- Disk stack - middle -->
-  <g transform="translate(60, 54)">
-    <ellipse cx="0" cy="0" rx="28" ry="8" fill="url(#diskGrad)"/>
-    <path d="M-28,0 L-28,-6 A28,8 0 0,1 28,-6 L28,0" fill="#cbd5e1"/>
-    <ellipse cx="0" cy="-6" rx="28" ry="8" fill="url(#diskGrad)"/>
-    <ellipse class="disk-glow-2" cx="0" cy="-6" rx="10" ry="3" fill="#8b5cf6" opacity="0.6"/>
-  </g>
-
-  <!-- Disk stack - top -->
-  <g transform="translate(60, 40)">
-    <ellipse cx="0" cy="0" rx="28" ry="8" fill="url(#diskGrad)"/>
-    <path d="M-28,0 L-28,-6 A28,8 0 0,1 28,-6 L28,0" fill="#cbd5e1"/>
-    <ellipse cx="0" cy="-6" rx="28" ry="8" fill="url(#diskGrad)"/>
-    <ellipse class="disk-glow-3" cx="0" cy="-6" rx="10" ry="3" fill="#a78bfa" opacity="0.6"/>
-  </g>
-
-  <!-- AI sparkle/pilot indicator -->
-  <g class="ai-sparkle">
-    <circle cx="82" cy="28" r="12" fill="#fbbf24"/>
-    <path d="M82,20 L84,26 L90,28 L84,30 L82,36 L80,30 L74,28 L80,26 Z" fill="white"/>
-  </g>
-
-  <!-- Circular arrow (automation indicator) -->
-  <g class="arrow-rotate" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" opacity="0.9">
-    <path d="M22,65 A40,40 0 0,1 40,25"/>
-    <polygon points="36,28 40,20 46,27" fill="white" stroke="none"/>
-  </g>
 </svg>
