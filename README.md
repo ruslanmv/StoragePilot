@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/ruslanmv/StoragePilot/main/assets/logo.svg" alt="StoragePilot Logo" width="120" height="120">
+  <img src="./assets/logo.svg" alt="StoragePilot Logo" width="120" height="120">
 </p>
 
 <h1 align="center">StoragePilot</h1>
