@@ -370,7 +370,7 @@ test-mcp:
 
 ENV_LOCAL ?= .env.local
 MCP_SERVER_URL ?= http://$(MCP_HTTP_HOST):$(MCP_HTTP_PORT)/mcp/sse
-MCP_REGISTER_SCRIPT ?= scripts/forge_register_storagepilot.sh
+MCP_REGISTER_SCRIPT ?= scripts/forge_register_storagepilot.py
 
 # Default Context Forge URL (can be overridden via .env.local or command line)
 FORGE_URL ?= http://localhost:4444
@@ -381,7 +381,7 @@ mcp-register:
 	@echo "╚═══════════════════════════════════════════════════════════════╝"
 	@echo ""
 	@test -f "$(ENV_LOCAL)" || (echo "Error: Missing $(ENV_LOCAL)"; echo "Create .env.local with PLATFORM_ADMIN_EMAIL and PLATFORM_ADMIN_PASSWORD"; exit 1)
-	@test -x "$(MCP_REGISTER_SCRIPT)" || (echo "Error: Missing or not executable: $(MCP_REGISTER_SCRIPT)"; exit 1)
+	@test -f "$(MCP_REGISTER_SCRIPT)" || (echo "Error: Missing: $(MCP_REGISTER_SCRIPT)"; exit 1)
 	@echo "Checking if Context Forge is running at $(FORGE_URL)..."
 	@curl -sS "$(FORGE_URL)/health" > /dev/null 2>&1 || (echo ""; echo "Error: Context Forge not running at $(FORGE_URL)"; echo "Start Context Forge first (make serve in Context Forge repo)"; exit 1)
 	@echo "Context Forge is running"
@@ -408,7 +408,7 @@ mcp-register:
 	@echo ""
 	@echo "MCP Server URL: $(MCP_SERVER_URL)"
 	@echo ""
-	@./$(MCP_REGISTER_SCRIPT) "$(ENV_LOCAL)" "$(MCP_SERVER_URL)"
+	@$(PYTHON) $(MCP_REGISTER_SCRIPT) --env "$(ENV_LOCAL)" --mcp-url "$(MCP_SERVER_URL)" --skip-health-checks
 	@echo ""
 	@echo "Done. Check Context Forge Admin UI -> Gateways to verify."
 	@echo ""
