@@ -2,7 +2,7 @@
 # =====================
 # Quick setup and installation commands
 
-.PHONY: help install install-deps install-ollama install-model setup-wizard run run-execute run-scan api api-prod test test-api test-all test-mcp clean mcp-server mcp-server-execute mcp-inspector mcp-dev mcp-list
+.PHONY: help install install-deps install-ollama install-model setup-wizard run run-execute run-scan api api-prod test test-api test-all test-mcp clean mcp-server mcp-server-execute mcp-inspector mcp-dev mcp-list mcp-register
 
 # Virtual environment paths
 VENV := .venv
@@ -49,6 +49,7 @@ help:
 	@echo "  make mcp-inspector       Launch MCP Inspector UI (test/debug tools)"
 	@echo "  make mcp-dev             Start server with MCP dev mode"
 	@echo "  make mcp-list            List all available MCP tools"
+	@echo "  make mcp-register        Register StoragePilot to MCP Context Forge"
 	@echo ""
 	@echo "Utilities:"
 	@echo "  make clean            Clean up generated files"
@@ -313,3 +314,42 @@ mcp-list:
 test-mcp:
 	@echo "Running MCP tool tests..."
 	@./scripts/test_mcp_tools.sh
+
+# -----------------------------------------------------------------------------
+# MCP Context Forge Registration
+# -----------------------------------------------------------------------------
+# Register StoragePilot as a STDIO gateway in MCP Context Forge
+#
+# Prerequisites:
+#   1. Create a wrapper script for StoragePilot (see example below)
+#   2. Create .env.local with Context Forge credentials
+#   3. Ensure Context Forge is running (make serve in Context Forge repo)
+#
+# Example wrapper script (~/storagepilot_mcp_dryrun.sh):
+#   #!/usr/bin/env bash
+#   set -euo pipefail
+#   cd "/path/to/StoragePilot"
+#   python3 mcp_server.py --dry-run
+#
+# .env.local should contain:
+#   PLATFORM_ADMIN_EMAIL=admin@example.com
+#   PLATFORM_ADMIN_PASSWORD=your-password
+#   APP_DOMAIN=http://localhost  (optional, defaults to localhost:4444)
+#   FORGE_URL=http://localhost:4444  (optional, overrides APP_DOMAIN)
+# -----------------------------------------------------------------------------
+
+ENV_LOCAL ?= .env.local
+STORAGEPILOT_WRAPPER ?= $(HOME)/storagepilot_mcp_dryrun.sh
+MCP_REGISTER_SCRIPT ?= scripts/forge_register_storagepilot.sh
+
+mcp-register:
+	@echo "╔═══════════════════════════════════════════════════════════════╗"
+	@echo "║     Registering StoragePilot MCP Server to Context Forge      ║"
+	@echo "╚═══════════════════════════════════════════════════════════════╝"
+	@echo ""
+	@test -f "$(ENV_LOCAL)" || (echo "Error: Missing $(ENV_LOCAL)"; echo "Create .env.local with PLATFORM_ADMIN_EMAIL and PLATFORM_ADMIN_PASSWORD"; exit 1)
+	@test -x "$(MCP_REGISTER_SCRIPT)" || (echo "Error: Missing or not executable: $(MCP_REGISTER_SCRIPT)"; exit 1)
+	@test -x "$(STORAGEPILOT_WRAPPER)" || (echo "Error: Missing or not executable: $(STORAGEPILOT_WRAPPER)"; echo ""; echo "Create a wrapper script, e.g.:"; echo "  cat > $(STORAGEPILOT_WRAPPER) <<'SH'"; echo "  #!/usr/bin/env bash"; echo "  set -euo pipefail"; echo "  cd \"$(CURDIR)\""; echo "  python3 mcp_server.py --dry-run"; echo "  SH"; echo "  chmod +x $(STORAGEPILOT_WRAPPER)"; exit 1)
+	@./$(MCP_REGISTER_SCRIPT) "$(ENV_LOCAL)" "$(STORAGEPILOT_WRAPPER)"
+	@echo ""
+	@echo "Done. Check Context Forge Admin UI -> Gateways to verify."
