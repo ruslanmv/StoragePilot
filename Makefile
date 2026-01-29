@@ -2,7 +2,7 @@
 # =====================
 # Quick setup and installation commands
 
-.PHONY: help install install-deps install-ollama install-model setup-wizard run run-execute run-scan api api-prod test test-api test-all test-mcp clean mcp-server mcp-server-execute mcp-inspector mcp-dev mcp-list mcp-wrapper mcp-register
+.PHONY: help install install-deps install-ollama install-model setup-wizard run run-execute run-scan api api-prod test test-api test-all test-mcp clean mcp-server mcp-server-execute mcp-inspector mcp-dev mcp-list mcp-register
 
 # Virtual environment paths
 VENV := .venv
@@ -339,17 +339,10 @@ test-mcp:
 # -----------------------------------------------------------------------------
 
 ENV_LOCAL ?= .env.local
-STORAGEPILOT_WRAPPER ?= $(HOME)/storagepilot_mcp_dryrun.sh
+STORAGEPILOT_WRAPPER ?= $(CURDIR)/scripts/storagepilot_mcp_wrapper.sh
 MCP_REGISTER_SCRIPT ?= scripts/forge_register_storagepilot.sh
 
-# Create the MCP wrapper script (auto-generated)
-mcp-wrapper:
-	@echo "Creating MCP wrapper script at $(STORAGEPILOT_WRAPPER)..."
-	@printf '#!/usr/bin/env bash\nset -euo pipefail\ncd "%s"\n%s mcp_server.py --dry-run\n' "$(CURDIR)" "$(CURDIR)/$(PYTHON)" > "$(STORAGEPILOT_WRAPPER)"
-	@chmod +x "$(STORAGEPILOT_WRAPPER)"
-	@echo "Wrapper script created: $(STORAGEPILOT_WRAPPER)"
-
-mcp-register: mcp-wrapper
+mcp-register:
 	@echo "╔═══════════════════════════════════════════════════════════════╗"
 	@echo "║     Registering StoragePilot MCP Server to Context Forge      ║"
 	@echo "╚═══════════════════════════════════════════════════════════════╝"
