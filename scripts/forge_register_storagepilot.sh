@@ -109,7 +109,12 @@ GATEWAY_DESC="${GATEWAY_DESC:-StoragePilot MCP Server - AI-powered storage manag
 echo "Registering gateway: $GATEWAY_NAME"
 echo "MCP Server URL: $MCP_SERVER_URL"
 
+# Bearer token for Context Forge (can be configured in .env.local)
+# If StoragePilot doesn't require auth, any token string is fine
+STORAGEPILOT_BEARER_TOKEN="${STORAGEPILOT_BEARER_TOKEN:-storagepilot-token}"
+
 # Create JSON payload using python for proper escaping
+# Note: Context Forge expects 'auth_token' (not 'auth_value') for bearer auth
 CREATE_PAYLOAD="$(python3 -c "
 import json
 payload = {
@@ -118,7 +123,7 @@ payload = {
     'description': '${GATEWAY_DESC}',
     'transport': 'SSE',
     'auth_type': 'bearer',
-    'auth_value': 'storagepilot-token',
+    'auth_token': '${STORAGEPILOT_BEARER_TOKEN}',
     'visibility': 'private',
     'tags': ['storagepilot', 'mcp', 'sse', 'storage']
 }
