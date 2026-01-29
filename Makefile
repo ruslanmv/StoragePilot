@@ -2,7 +2,7 @@
 # =====================
 # Quick setup and installation commands
 
-.PHONY: help install install-deps install-ollama install-model setup-wizard run run-execute run-scan api api-prod test test-api test-all test-mcp clean mcp-server mcp-server-execute mcp-inspector mcp-dev mcp-list mcp-register
+.PHONY: help install install-deps install-ollama install-model setup-wizard run run-execute run-scan api api-prod test test-api test-all test-mcp clean mcp-server mcp-server-execute mcp-inspector mcp-dev mcp-list mcp-wrapper mcp-register
 
 # Virtual environment paths
 VENV := .venv
@@ -342,14 +342,20 @@ ENV_LOCAL ?= .env.local
 STORAGEPILOT_WRAPPER ?= $(HOME)/storagepilot_mcp_dryrun.sh
 MCP_REGISTER_SCRIPT ?= scripts/forge_register_storagepilot.sh
 
-mcp-register:
+# Create the MCP wrapper script (auto-generated)
+mcp-wrapper:
+	@echo "Creating MCP wrapper script at $(STORAGEPILOT_WRAPPER)..."
+	@printf '#!/usr/bin/env bash\nset -euo pipefail\ncd "%s"\n%s mcp_server.py --dry-run\n' "$(CURDIR)" "$(CURDIR)/$(PYTHON)" > "$(STORAGEPILOT_WRAPPER)"
+	@chmod +x "$(STORAGEPILOT_WRAPPER)"
+	@echo "Wrapper script created: $(STORAGEPILOT_WRAPPER)"
+
+mcp-register: mcp-wrapper
 	@echo "╔═══════════════════════════════════════════════════════════════╗"
 	@echo "║     Registering StoragePilot MCP Server to Context Forge      ║"
 	@echo "╚═══════════════════════════════════════════════════════════════╝"
 	@echo ""
 	@test -f "$(ENV_LOCAL)" || (echo "Error: Missing $(ENV_LOCAL)"; echo "Create .env.local with PLATFORM_ADMIN_EMAIL and PLATFORM_ADMIN_PASSWORD"; exit 1)
 	@test -x "$(MCP_REGISTER_SCRIPT)" || (echo "Error: Missing or not executable: $(MCP_REGISTER_SCRIPT)"; exit 1)
-	@test -x "$(STORAGEPILOT_WRAPPER)" || (echo "Error: Missing or not executable: $(STORAGEPILOT_WRAPPER)"; echo ""; echo "Create a wrapper script, e.g.:"; echo "  cat > $(STORAGEPILOT_WRAPPER) <<'SH'"; echo "  #!/usr/bin/env bash"; echo "  set -euo pipefail"; echo "  cd \"$(CURDIR)\""; echo "  python3 mcp_server.py --dry-run"; echo "  SH"; echo "  chmod +x $(STORAGEPILOT_WRAPPER)"; exit 1)
 	@./$(MCP_REGISTER_SCRIPT) "$(ENV_LOCAL)" "$(STORAGEPILOT_WRAPPER)"
 	@echo ""
 	@echo "Done. Check Context Forge Admin UI -> Gateways to verify."
