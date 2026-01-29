@@ -89,12 +89,14 @@ LOGIN_JSON="$(curl -sS -X POST "$FORGE_URL/auth/login" \
   -H "Content-Type: application/json" \
   -d "{\"email\":\"$ADMIN_EMAIL\",\"password\":\"$ADMIN_PASS\"}")"
 
-TOKEN="$(python3 - <<'PY'
-import json,sys
-data=json.loads(sys.stdin.read())
-print(data.get("access_token",""))
-PY
-<<<"$LOGIN_JSON")"
+# Check for empty response
+if [[ -z "$LOGIN_JSON" ]]; then
+  echo "Error: Empty login response (Context Forge not reachable?)"
+  exit 1
+fi
+
+# Parse token using python -c (stdin is free for JSON input)
+TOKEN="$(python3 -c 'import json,sys; print(json.load(sys.stdin).get("access_token",""))' <<<"$LOGIN_JSON")"
 
 if [[ -z "$TOKEN" ]]; then
   echo "Error: Login failed. Response:"
