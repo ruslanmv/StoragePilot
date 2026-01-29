@@ -371,19 +371,45 @@ ENV_LOCAL ?= .env.local
 MCP_SERVER_URL ?= http://$(MCP_HTTP_HOST):$(MCP_HTTP_PORT)/mcp/sse
 MCP_REGISTER_SCRIPT ?= scripts/forge_register_storagepilot.sh
 
+# Default Context Forge URL (can be overridden via .env.local or command line)
+FORGE_URL ?= http://localhost:4444
+
 mcp-register:
 	@echo "╔═══════════════════════════════════════════════════════════════╗"
 	@echo "║     Registering StoragePilot MCP Server to Context Forge      ║"
 	@echo "╚═══════════════════════════════════════════════════════════════╝"
 	@echo ""
-	@echo "MCP Server URL: $(MCP_SERVER_URL)"
-	@echo ""
 	@test -f "$(ENV_LOCAL)" || (echo "Error: Missing $(ENV_LOCAL)"; echo "Create .env.local with PLATFORM_ADMIN_EMAIL and PLATFORM_ADMIN_PASSWORD"; exit 1)
 	@test -x "$(MCP_REGISTER_SCRIPT)" || (echo "Error: Missing or not executable: $(MCP_REGISTER_SCRIPT)"; exit 1)
-	@echo "Checking if MCP server is running..."
-	@curl -sS "http://$(MCP_HTTP_HOST):$(MCP_HTTP_PORT)/health" > /dev/null 2>&1 || (echo ""; echo "Error: MCP server not running at http://$(MCP_HTTP_HOST):$(MCP_HTTP_PORT)"; echo "Start it first with: make mcp-server-http"; exit 1)
-	@echo "MCP server is running"
+	@echo "Checking if Context Forge is running at $(FORGE_URL)..."
+	@curl -sS "$(FORGE_URL)/health" > /dev/null 2>&1 || (echo ""; echo "Error: Context Forge not running at $(FORGE_URL)"; echo "Start Context Forge first (make serve in Context Forge repo)"; exit 1)
+	@echo "Context Forge is running"
+	@echo ""
+	@echo "Checking if MCP server is running at http://$(MCP_HTTP_HOST):$(MCP_HTTP_PORT)..."
+	@if ! curl -sS "http://$(MCP_HTTP_HOST):$(MCP_HTTP_PORT)/health" > /dev/null 2>&1; then \
+		echo "MCP server not running. Starting in background..."; \
+		$(PYTHON) mcp_server.py --http --host $(MCP_HTTP_HOST) --port $(MCP_HTTP_PORT) --dry-run > /dev/null 2>&1 & \
+		echo "Waiting for MCP server to start..."; \
+		for i in 1 2 3 4 5 6 7 8 9 10; do \
+			sleep 1; \
+			if curl -sS "http://$(MCP_HTTP_HOST):$(MCP_HTTP_PORT)/health" > /dev/null 2>&1; then \
+				echo "MCP server started successfully"; \
+				break; \
+			fi; \
+			if [ $$i -eq 10 ]; then \
+				echo "Error: MCP server failed to start after 10 seconds"; \
+				exit 1; \
+			fi; \
+		done; \
+	else \
+		echo "MCP server is already running"; \
+	fi
+	@echo ""
+	@echo "MCP Server URL: $(MCP_SERVER_URL)"
 	@echo ""
 	@./$(MCP_REGISTER_SCRIPT) "$(ENV_LOCAL)" "$(MCP_SERVER_URL)"
 	@echo ""
 	@echo "Done. Check Context Forge Admin UI -> Gateways to verify."
+	@echo ""
+	@echo "Note: MCP server is running in background on http://$(MCP_HTTP_HOST):$(MCP_HTTP_PORT)"
+	@echo "To stop it: pkill -f 'mcp_server.py --http'"
