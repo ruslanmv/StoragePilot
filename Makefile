@@ -2,7 +2,7 @@
 # =====================
 # Quick setup and installation commands
 
-.PHONY: help install install-deps install-ollama install-model setup-wizard run run-execute run-scan api api-prod test test-api test-all test-mcp clean mcp-server mcp-server-execute mcp-inspector mcp-dev mcp-list mcp-register
+.PHONY: help install install-deps install-ollama install-model setup-wizard run run-execute run-scan api api-prod test test-api test-all test-mcp clean mcp-server mcp-server-execute mcp-server-http mcp-server-http-execute mcp-inspector mcp-dev mcp-list mcp-register
 
 # Virtual environment paths
 VENV := .venv
@@ -44,12 +44,14 @@ help:
 	@echo "  make test-mcp         Test all MCP server tools"
 	@echo ""
 	@echo "MCP Server (Model Context Protocol):"
-	@echo "  make mcp-server          Start MCP server (dry-run, stdio transport)"
-	@echo "  make mcp-server-execute  Start MCP server (execute mode)"
-	@echo "  make mcp-inspector       Launch MCP Inspector UI (test/debug tools)"
-	@echo "  make mcp-dev             Start server with MCP dev mode"
-	@echo "  make mcp-list            List all available MCP tools"
-	@echo "  make mcp-register        Register StoragePilot to MCP Context Forge"
+	@echo "  make mcp-server              Start MCP server (dry-run, stdio transport)"
+	@echo "  make mcp-server-execute      Start MCP server (execute mode, stdio)"
+	@echo "  make mcp-server-http         Start MCP HTTP server (for Context Forge)"
+	@echo "  make mcp-server-http-execute Start MCP HTTP server (execute mode)"
+	@echo "  make mcp-inspector           Launch MCP Inspector UI (test/debug)"
+	@echo "  make mcp-dev                 Start server with MCP dev mode"
+	@echo "  make mcp-list                List all available MCP tools"
+	@echo "  make mcp-register            Register StoragePilot to Context Forge"
 	@echo ""
 	@echo "Utilities:"
 	@echo "  make clean            Clean up generated files"
@@ -227,13 +229,47 @@ mcp-server-execute:
 	@echo "╔═══════════════════════════════════════════════════════════════╗"
 	@echo "║         StoragePilot MCP Server (EXECUTE MODE)                ║"
 	@echo "╠═══════════════════════════════════════════════════════════════╣"
-	@echo "║  ⚠️  WARNING: This mode performs ACTUAL file operations!       ║"
+	@echo "║  WARNING: This mode performs ACTUAL file operations!          ║"
 	@echo "║                                                               ║"
 	@echo "║  Transport: stdio                                             ║"
 	@echo "║  Mode: EXECUTE (live file changes)                            ║"
 	@echo "╚═══════════════════════════════════════════════════════════════╝"
 	@echo ""
 	$(PYTHON) mcp_server.py --execute
+
+# HTTP server port (default: 9000)
+MCP_HTTP_PORT ?= 9000
+MCP_HTTP_HOST ?= 127.0.0.1
+
+# Start MCP server with HTTP/SSE transport (for Context Forge integration)
+mcp-server-http:
+	$(call check_mcp)
+	@echo "╔═══════════════════════════════════════════════════════════════╗"
+	@echo "║      StoragePilot MCP Server (HTTP/SSE - DRY-RUN MODE)        ║"
+	@echo "╠═══════════════════════════════════════════════════════════════╣"
+	@echo "║  Transport: HTTP/SSE (for Context Forge)                      ║"
+	@echo "║  Mode: DRY-RUN (preview only, no file changes)                ║"
+	@echo "║  URL: http://$(MCP_HTTP_HOST):$(MCP_HTTP_PORT)/mcp/sse        ║"
+	@echo "║                                                               ║"
+	@echo "║  After starting, run: make mcp-register                       ║"
+	@echo "╚═══════════════════════════════════════════════════════════════╝"
+	@echo ""
+	$(PYTHON) mcp_server.py --http --host $(MCP_HTTP_HOST) --port $(MCP_HTTP_PORT) --dry-run
+
+# Start MCP server with HTTP/SSE transport (execute mode)
+mcp-server-http-execute:
+	$(call check_mcp)
+	@echo "╔═══════════════════════════════════════════════════════════════╗"
+	@echo "║       StoragePilot MCP Server (HTTP/SSE - EXECUTE MODE)       ║"
+	@echo "╠═══════════════════════════════════════════════════════════════╣"
+	@echo "║  WARNING: This mode performs ACTUAL file operations!          ║"
+	@echo "║                                                               ║"
+	@echo "║  Transport: HTTP/SSE (for Context Forge)                      ║"
+	@echo "║  Mode: EXECUTE (live file changes)                            ║"
+	@echo "║  URL: http://$(MCP_HTTP_HOST):$(MCP_HTTP_PORT)/mcp/sse        ║"
+	@echo "╚═══════════════════════════════════════════════════════════════╝"
+	@echo ""
+	$(PYTHON) mcp_server.py --http --host $(MCP_HTTP_HOST) --port $(MCP_HTTP_PORT) --execute
 
 # Launch MCP Inspector to test and debug tools
 mcp-inspector:
@@ -318,28 +354,21 @@ test-mcp:
 # -----------------------------------------------------------------------------
 # MCP Context Forge Registration
 # -----------------------------------------------------------------------------
-# Register StoragePilot as a STDIO gateway in MCP Context Forge
+# Register StoragePilot as an HTTP/SSE gateway in MCP Context Forge
 #
 # Prerequisites:
-#   1. Create a wrapper script for StoragePilot (see example below)
+#   1. Start StoragePilot HTTP server: make mcp-server-http
 #   2. Create .env.local with Context Forge credentials
 #   3. Ensure Context Forge is running (make serve in Context Forge repo)
-#
-# Example wrapper script (~/storagepilot_mcp_dryrun.sh):
-#   #!/usr/bin/env bash
-#   set -euo pipefail
-#   cd "/path/to/StoragePilot"
-#   python3 mcp_server.py --dry-run
 #
 # .env.local should contain:
 #   PLATFORM_ADMIN_EMAIL=admin@example.com
 #   PLATFORM_ADMIN_PASSWORD=your-password
-#   APP_DOMAIN=http://localhost  (optional, defaults to localhost:4444)
-#   FORGE_URL=http://localhost:4444  (optional, overrides APP_DOMAIN)
+#   FORGE_URL=http://localhost:4444  (optional, defaults to localhost:4444)
 # -----------------------------------------------------------------------------
 
 ENV_LOCAL ?= .env.local
-STORAGEPILOT_WRAPPER ?= $(CURDIR)/scripts/storagepilot_mcp_wrapper.sh
+MCP_SERVER_URL ?= http://$(MCP_HTTP_HOST):$(MCP_HTTP_PORT)/mcp/sse
 MCP_REGISTER_SCRIPT ?= scripts/forge_register_storagepilot.sh
 
 mcp-register:
@@ -347,8 +376,14 @@ mcp-register:
 	@echo "║     Registering StoragePilot MCP Server to Context Forge      ║"
 	@echo "╚═══════════════════════════════════════════════════════════════╝"
 	@echo ""
+	@echo "MCP Server URL: $(MCP_SERVER_URL)"
+	@echo ""
 	@test -f "$(ENV_LOCAL)" || (echo "Error: Missing $(ENV_LOCAL)"; echo "Create .env.local with PLATFORM_ADMIN_EMAIL and PLATFORM_ADMIN_PASSWORD"; exit 1)
 	@test -x "$(MCP_REGISTER_SCRIPT)" || (echo "Error: Missing or not executable: $(MCP_REGISTER_SCRIPT)"; exit 1)
-	@./$(MCP_REGISTER_SCRIPT) "$(ENV_LOCAL)" "$(STORAGEPILOT_WRAPPER)"
+	@echo "Checking if MCP server is running..."
+	@curl -sS "http://$(MCP_HTTP_HOST):$(MCP_HTTP_PORT)/health" > /dev/null 2>&1 || (echo ""; echo "Error: MCP server not running at http://$(MCP_HTTP_HOST):$(MCP_HTTP_PORT)"; echo "Start it first with: make mcp-server-http"; exit 1)
+	@echo "MCP server is running"
+	@echo ""
+	@./$(MCP_REGISTER_SCRIPT) "$(ENV_LOCAL)" "$(MCP_SERVER_URL)"
 	@echo ""
 	@echo "Done. Check Context Forge Admin UI -> Gateways to verify."

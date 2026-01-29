@@ -51,6 +51,10 @@ httpx>=0.25.0
 # MCP Server (Model Context Protocol) with CLI tools
 mcp[cli]>=1.0.0
 
+# MCP HTTP/SSE Transport (for Context Forge integration)
+starlette>=0.27.0
+sse-starlette>=1.6.0
+
 # Testing
 pytest>=7.0.0
 pytest-cov>=4.0.0

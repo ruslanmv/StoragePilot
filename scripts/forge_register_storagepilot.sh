@@ -2,24 +2,28 @@
 # =============================================================================
 # StoragePilot MCP Server Registration Script
 # =============================================================================
-# Registers StoragePilot as a STDIO gateway in MCP Context Forge
+# Registers StoragePilot as an HTTP gateway in MCP Context Forge
 #
 # Usage:
-#   ./forge_register_storagepilot.sh /path/to/.env.local /path/to/wrapper.sh
+#   ./forge_register_storagepilot.sh /path/to/.env.local [MCP_SERVER_URL]
 #
 # Example:
-#   ./forge_register_storagepilot.sh .env.local ~/storagepilot_mcp_dryrun.sh
+#   ./forge_register_storagepilot.sh .env.local
+#   ./forge_register_storagepilot.sh .env.local http://localhost:9000/mcp/sse
+#
+# Prerequisites:
+#   - StoragePilot MCP server running in HTTP mode: make mcp-server-http
+#   - Context Forge running and accessible
 #
 # Requirements:
 #   - curl
 #   - python3 (for JSON parsing)
-#   - Context Forge running and accessible
 # =============================================================================
 
 set -euo pipefail
 
 ENV_FILE="${1:-.env.local}"
-WRAPPER_PATH="${2:-}"
+MCP_SERVER_URL="${2:-http://localhost:9000/mcp/sse}"
 
 # -----------------------------------------------------------------------------
 # Validation
@@ -27,18 +31,6 @@ WRAPPER_PATH="${2:-}"
 
 if [[ ! -f "$ENV_FILE" ]]; then
   echo "Error: Env file not found: $ENV_FILE"
-  exit 1
-fi
-
-if [[ -z "$WRAPPER_PATH" ]]; then
-  echo "Error: Missing wrapper script path argument."
-  echo "Usage: $0 .env.local /path/to/storagepilot_wrapper.sh"
-  exit 1
-fi
-
-if [[ ! -x "$WRAPPER_PATH" ]]; then
-  echo "Error: Wrapper script is not executable: $WRAPPER_PATH"
-  echo "Fix with: chmod +x \"$WRAPPER_PATH\""
   exit 1
 fi
 
@@ -108,28 +100,30 @@ echo "Logged in successfully"
 export CONTEXT_FORGE_TOKEN="$TOKEN"
 
 # -----------------------------------------------------------------------------
-# Register StoragePilot as a Gateway (STDIO)
+# Register StoragePilot as a Gateway (HTTP/SSE)
 # -----------------------------------------------------------------------------
 
-GATEWAY_NAME="${GATEWAY_NAME:-storagepilot-stdio}"
-GATEWAY_DESC="${GATEWAY_DESC:-StoragePilot MCP (STDIO) - dry-run wrapper}"
+GATEWAY_NAME="${GATEWAY_NAME:-storagepilot}"
+GATEWAY_DESC="${GATEWAY_DESC:-StoragePilot MCP Server - AI-powered storage management}"
 
 echo "Registering gateway: $GATEWAY_NAME"
+echo "MCP Server URL: $MCP_SERVER_URL"
 
-CREATE_PAYLOAD="$(python3 - <<PY
+# Create JSON payload using python for proper escaping
+CREATE_PAYLOAD="$(python3 -c "
 import json
 payload = {
-  "name": "${GATEWAY_NAME}",
-  "url": "${WRAPPER_PATH}",
-  "description": "${GATEWAY_DESC}",
-  "transport": "STDIO",
-  "auth_type": "none",
-  "visibility": "private",
-  "tags": ["storagepilot", "mcp", "stdio"]
+    'name': '${GATEWAY_NAME}',
+    'url': '${MCP_SERVER_URL}',
+    'description': '${GATEWAY_DESC}',
+    'transport': 'SSE',
+    'auth_type': 'bearer',
+    'auth_value': 'storagepilot-token',
+    'visibility': 'private',
+    'tags': ['storagepilot', 'mcp', 'sse', 'storage']
 }
 print(json.dumps(payload))
-PY
-)"
+")"
 
 CREATE_RESP="$(curl -sS -X POST "$FORGE_URL/gateways" \
   -H "Authorization: Bearer $TOKEN" \

@@ -10,6 +10,8 @@ Usage:
     python mcp_server.py                    # Start server (stdio transport)
     python mcp_server.py --dry-run          # Start in dry-run mode (default)
     python mcp_server.py --execute          # Start in execute mode (allows mutations)
+    python mcp_server.py --http             # Start HTTP server (SSE transport)
+    python mcp_server.py --http --port 9000 # Start HTTP server on custom port
 
 The server exposes tools in these categories:
     - Discovery: scan_directory, find_large_files, find_old_files, find_developer_artifacts
@@ -619,6 +621,116 @@ def _detect_duplicates_impl(terminal_tools: TerminalTools, directory_path: str) 
 
 
 # =============================================================================
+# HTTP Server Support
+# =============================================================================
+
+def create_http_app(server: Server, dry_run: bool):
+    """Create a Starlette ASGI app for HTTP/SSE transport."""
+    try:
+        from starlette.applications import Starlette
+        from starlette.routing import Route, Mount
+        from starlette.responses import JSONResponse, Response
+        from starlette.middleware import Middleware
+        from starlette.middleware.cors import CORSMiddleware
+        from mcp.server.sse import SseServerTransport
+    except ImportError:
+        print("Error: HTTP transport requires additional dependencies.", file=sys.stderr)
+        print("Install with: pip install starlette uvicorn sse-starlette", file=sys.stderr)
+        sys.exit(1)
+
+    # Create SSE transport
+    sse_transport = SseServerTransport("/mcp/messages")
+
+    async def handle_sse(request):
+        """Handle SSE connection for MCP protocol."""
+        async with sse_transport.connect_sse(
+            request.scope, request.receive, request._send
+        ) as streams:
+            await server.run(
+                streams[0], streams[1], server.create_initialization_options()
+            )
+
+    async def handle_messages(request):
+        """Handle POST messages for MCP protocol."""
+        await sse_transport.handle_post_message(
+            request.scope, request.receive, request._send
+        )
+
+    async def health_check(request):
+        """Health check endpoint."""
+        mode_str = "dry-run" if dry_run else "execute"
+        return JSONResponse({
+            "status": "healthy",
+            "server": "StoragePilot MCP Server",
+            "version": "1.0.0",
+            "mode": mode_str,
+            "transport": "http/sse"
+        })
+
+    async def server_info(request):
+        """Server info endpoint."""
+        return JSONResponse({
+            "name": "storagepilot",
+            "version": "1.0.0",
+            "description": "StoragePilot MCP Server - AI-powered storage management",
+            "mode": "dry-run" if dry_run else "execute",
+            "transport": "http/sse",
+            "endpoints": {
+                "sse": "/mcp/sse",
+                "messages": "/mcp/messages",
+                "health": "/health",
+                "info": "/info"
+            },
+            "tools_count": 15
+        })
+
+    # Create routes
+    routes = [
+        Route("/health", health_check, methods=["GET"]),
+        Route("/info", server_info, methods=["GET"]),
+        Route("/mcp/sse", handle_sse, methods=["GET"]),
+        Route("/mcp/messages", handle_messages, methods=["POST"]),
+    ]
+
+    # Add CORS middleware for cross-origin requests
+    middleware = [
+        Middleware(
+            CORSMiddleware,
+            allow_origins=["*"],
+            allow_credentials=True,
+            allow_methods=["*"],
+            allow_headers=["*"],
+        )
+    ]
+
+    return Starlette(routes=routes, middleware=middleware)
+
+
+async def run_http_server(server: Server, dry_run: bool, host: str, port: int):
+    """Run the MCP server with HTTP/SSE transport."""
+    try:
+        import uvicorn
+    except ImportError:
+        print("Error: HTTP transport requires uvicorn.", file=sys.stderr)
+        print("Install with: pip install uvicorn", file=sys.stderr)
+        sys.exit(1)
+
+    app = create_http_app(server, dry_run)
+    mode_str = "DRY-RUN (preview)" if dry_run else "EXECUTE (live)"
+
+    print(f"StoragePilot MCP Server starting in {mode_str} mode...", file=sys.stderr)
+    print(f"HTTP/SSE transport on http://{host}:{port}", file=sys.stderr)
+    print(f"  - SSE endpoint:     http://{host}:{port}/mcp/sse", file=sys.stderr)
+    print(f"  - Messages:         http://{host}:{port}/mcp/messages", file=sys.stderr)
+    print(f"  - Health check:     http://{host}:{port}/health", file=sys.stderr)
+    print(f"  - Server info:      http://{host}:{port}/info", file=sys.stderr)
+
+    config = uvicorn.Config(app, host=host, port=port, log_level="info")
+    server_instance = uvicorn.Server(config)
+    await server_instance.serve()
+
+
+# =============================================================================
 # Main Entry Point
 # =============================================================================
 
@@ -638,6 +750,23 @@ async def main():
         action="store_true",
         help="Run in execute mode (allows actual file system changes)"
     )
+    parser.add_argument(
+        "--http",
+        action="store_true",
+        help="Run with HTTP/SSE transport instead of stdio (for Context Forge)"
+    )
+    parser.add_argument(
+        "--host",
+        type=str,
+        default="127.0.0.1",
+        help="Host to bind HTTP server (default: 127.0.0.1)"
+    )
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=9000,
+        help="Port for HTTP server (default: 9000)"
+    )
 
     args = parser.parse_args()
 
@@ -647,17 +776,20 @@ async def main():
     # Create server
     server = create_server(dry_run=dry_run)
 
-    # Log startup info to stderr (stdout is for MCP protocol)
-    mode_str = "DRY-RUN (preview)" if dry_run else "EXECUTE (live)"
-    print(f"StoragePilot MCP Server starting in {mode_str} mode...", file=sys.stderr)
+    if args.http:
+        # Run with HTTP/SSE transport
+        await run_http_server(server, dry_run, args.host, args.port)
+    else:
+        # Run with stdio transport (default)
+        mode_str = "DRY-RUN (preview)" if dry_run else "EXECUTE (live)"
+        print(f"StoragePilot MCP Server starting in {mode_str} mode...", file=sys.stderr)
 
-    # Run server with stdio transport
-    async with stdio_server() as (read_stream, write_stream):
-        await server.run(
-            read_stream,
-            write_stream,
-            server.create_initialization_options()
-        )
+        async with stdio_server() as (read_stream, write_stream):
+            await server.run(
+                read_stream,
+                write_stream,
+                server.create_initialization_options()
+            )
 
 
 if __name__ == "__main__":
