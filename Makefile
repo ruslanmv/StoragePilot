@@ -2,7 +2,7 @@
 # =====================
 # Quick setup and installation commands
 
-.PHONY: help install install-deps install-ollama install-model setup-wizard run run-execute run-scan api api-prod test test-api test-all test-mcp clean mcp-server mcp-server-execute mcp-server-http mcp-server-http-execute mcp-inspector mcp-dev mcp-list mcp-register mcp-stop
+.PHONY: help install install-deps install-ollama install-model setup-wizard run run-execute run-scan api api-prod test test-api test-all test-mcp clean mcp-server mcp-server-execute mcp-server-http mcp-server-http-execute mcp-inspector mcp-dev mcp-list mcp-register mcp-publish mcp-stop
 
 # Virtual environment paths
 VENV := .venv
@@ -52,7 +52,8 @@ help:
 	@echo "  make mcp-inspector           Launch MCP Inspector UI (test/debug)"
 	@echo "  make mcp-dev                 Start server with MCP dev mode"
 	@echo "  make mcp-list                List all available MCP tools"
-	@echo "  make mcp-register            Register StoragePilot to Context Forge"
+	@echo "  make mcp-register            Register gateway to Context Forge (Layer 1)"
+	@echo "  make mcp-publish             Publish catalog server for MatrixShell (Layer 2)"
 	@echo ""
 	@echo "Utilities:"
 	@echo "  make clean            Clean up generated files"
@@ -414,6 +415,34 @@ mcp-register:
 	@echo ""
 	@echo "Note: MCP server is running in background on http://$(MCP_HTTP_HOST):$(MCP_HTTP_PORT)"
 	@echo "To stop it: make mcp-stop"
+	@echo ""
+	@echo "Next: run 'make mcp-publish' to create catalog server for MatrixShell sync"
+
+# -----------------------------------------------------------------------------
+# MCP Context Forge - Publish Catalog Server (Layer 2)
+# -----------------------------------------------------------------------------
+# Creates a Catalog Server / Virtual Server that references the gateway,
+# enabling MatrixShell to sync StoragePilot tools as plugins.
+#
+# Run this AFTER mcp-register to complete the full integration.
+# -----------------------------------------------------------------------------
+
+MCP_PUBLISH_SCRIPT ?= scripts/forge_publish_storagepilot.py
+
+mcp-publish:
+	@echo "╔═══════════════════════════════════════════════════════════════╗"
+	@echo "║     Publishing StoragePilot to Context Forge Catalog          ║"
+	@echo "╚═══════════════════════════════════════════════════════════════╝"
+	@echo ""
+	@test -f "$(ENV_LOCAL)" || (echo "Error: Missing $(ENV_LOCAL)"; exit 1)
+	@test -f "$(MCP_PUBLISH_SCRIPT)" || (echo "Error: Missing: $(MCP_PUBLISH_SCRIPT)"; exit 1)
+	@echo "Checking if Context Forge is running at $(FORGE_URL)..."
+	@curl -sS "$(FORGE_URL)/health" > /dev/null 2>&1 || (echo ""; echo "Error: Context Forge not running at $(FORGE_URL)"; exit 1)
+	@echo "Context Forge is running"
+	@echo ""
+	@$(PYTHON) $(MCP_PUBLISH_SCRIPT) --env "$(ENV_LOCAL)"
+	@echo ""
+	@echo "Done. MatrixShell can now sync StoragePilot tools."
 
 # Stop all running MCP servers
 mcp-stop:
