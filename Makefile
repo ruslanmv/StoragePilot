@@ -2,7 +2,7 @@
 # =====================
 # Quick setup and installation commands
 
-.PHONY: help install install-deps install-ollama install-model setup-wizard run run-execute run-scan api api-prod test test-api test-all test-mcp clean mcp-server mcp-server-execute mcp-server-http mcp-server-http-execute mcp-inspector mcp-dev mcp-list mcp-register
+.PHONY: help install install-deps install-ollama install-model setup-wizard run run-execute run-scan api api-prod test test-api test-all test-mcp clean mcp-server mcp-server-execute mcp-server-http mcp-server-http-execute mcp-inspector mcp-dev mcp-list mcp-register mcp-stop
 
 # Virtual environment paths
 VENV := .venv
@@ -48,6 +48,7 @@ help:
 	@echo "  make mcp-server-execute      Start MCP server (execute mode, stdio)"
 	@echo "  make mcp-server-http         Start MCP HTTP server (for Context Forge)"
 	@echo "  make mcp-server-http-execute Start MCP HTTP server (execute mode)"
+	@echo "  make mcp-stop                Stop all running MCP servers"
 	@echo "  make mcp-inspector           Launch MCP Inspector UI (test/debug)"
 	@echo "  make mcp-dev                 Start server with MCP dev mode"
 	@echo "  make mcp-list                List all available MCP tools"
@@ -412,4 +413,26 @@ mcp-register:
 	@echo "Done. Check Context Forge Admin UI -> Gateways to verify."
 	@echo ""
 	@echo "Note: MCP server is running in background on http://$(MCP_HTTP_HOST):$(MCP_HTTP_PORT)"
-	@echo "To stop it: pkill -f 'mcp_server.py --http'"
+	@echo "To stop it: make mcp-stop"
+
+# Stop all running MCP servers
+mcp-stop:
+	@echo "╔═══════════════════════════════════════════════════════════════╗"
+	@echo "║              Stopping StoragePilot MCP Servers                ║"
+	@echo "╚═══════════════════════════════════════════════════════════════╝"
+	@echo ""
+	@echo "Checking for running MCP servers..."
+	@ps aux 2>/dev/null | grep -v grep | grep -q 'mcp_server.py.*--http' && \
+		(echo "Stopping HTTP/SSE MCP servers..." && pkill -f 'python.*mcp_server.py.*--http' && echo "Stopped") || \
+		echo "No HTTP MCP servers running"
+	@ps aux 2>/dev/null | grep -v grep | grep -q 'mcp_server.py.*--dry-run' && \
+		(echo "Stopping STDIO dry-run servers..." && pkill -f 'python.*mcp_server.py.*--dry-run' && echo "Stopped") || \
+		echo "No STDIO dry-run servers running"
+	@ps aux 2>/dev/null | grep -v grep | grep -q 'mcp_server.py.*--execute' && \
+		(echo "Stopping STDIO execute servers..." && pkill -f 'python.*mcp_server.py.*--execute' && echo "Stopped") || \
+		echo "No STDIO execute servers running"
+	@ps aux 2>/dev/null | grep -v grep | grep -q 'modelcontextprotocol/inspector' && \
+		(echo "Stopping MCP Inspector..." && pkill -f 'modelcontextprotocol/inspector' && echo "Stopped") || \
+		echo "No MCP Inspector running"
+	@echo ""
+	@echo "Done."
